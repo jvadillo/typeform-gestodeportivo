@@ -1,0 +1,15 @@
+PRAGMA journal_mode=WAL;
+PRAGMA foreign_keys=ON;
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, expires REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS login_attempts (ip TEXT PRIMARY KEY, count INTEGER NOT NULL, since REAL NOT NULL);
+CREATE TABLE IF NOT EXISTS forms (id TEXT PRIMARY KEY, name TEXT NOT NULL, draft TEXT NOT NULL, published INTEGER, updated TEXT NOT NULL, revision INTEGER NOT NULL DEFAULT 1);
+CREATE TABLE IF NOT EXISTS versions (form_id TEXT NOT NULL REFERENCES forms(id) ON DELETE CASCADE, version INTEGER NOT NULL, document TEXT NOT NULL, created TEXT NOT NULL, PRIMARY KEY(form_id,version));
+CREATE TABLE IF NOT EXISTS destinations (id TEXT PRIMARY KEY, spreadsheet TEXT NOT NULL, sheet_id INTEGER NOT NULL, title TEXT NOT NULL, columns TEXT NOT NULL DEFAULT '[]', next_row INTEGER NOT NULL DEFAULT 2, UNIQUE(spreadsheet,sheet_id));
+CREATE TABLE IF NOT EXISTS integrations (form_id TEXT PRIMARY KEY REFERENCES forms(id) ON DELETE CASCADE, destination_id TEXT REFERENCES destinations(id), enabled INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE IF NOT EXISTS submissions (id TEXT PRIMARY KEY, form_id TEXT NOT NULL REFERENCES forms(id) ON DELETE CASCADE, version INTEGER NOT NULL, completed TEXT NOT NULL, answers TEXT NOT NULL, total REAL NOT NULL, result_id TEXT NOT NULL, result_title TEXT NOT NULL, fingerprint TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS jobs (submission_id TEXT PRIMARY KEY REFERENCES submissions(id) ON DELETE CASCADE, destination_id TEXT NOT NULL REFERENCES destinations(id), status TEXT NOT NULL DEFAULT 'pending', attempts INTEGER NOT NULL DEFAULT 0, next_attempt REAL NOT NULL DEFAULT 0, error TEXT, row_number INTEGER, synced_at TEXT);
+CREATE INDEX IF NOT EXISTS submissions_form ON submissions(form_id,completed);
+CREATE INDEX IF NOT EXISTS jobs_pending ON jobs(status,next_attempt);
+CREATE TABLE IF NOT EXISTS oauth_states (state TEXT PRIMARY KEY, session_id TEXT NOT NULL, form_id TEXT NOT NULL, expires REAL NOT NULL);
+PRAGMA user_version=1;

@@ -1,0 +1,28 @@
+services:
+  forms:
+    build: ..
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:${HOST_PORT:-8015}:8000"
+    environment:
+      APP_ENV: production
+      APP_URL: ${APP_URL:?Configura una URL HTTPS}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?Configura la contraseña del propietario}
+      SECRET_KEY: ${SECRET_KEY:?Configura la clave Fernet}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      DATA_DIR: /data
+    volumes:
+      - gesto_data:/data
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 512m
+    cpus: 1.0
+volumes:
+  gesto_data:

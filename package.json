@@ -1,0 +1,10 @@
+{
+  "name": "gesto-formularios",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python -m server",
+    "test": "node --test tests/flow.test.js tests/player.test.js"
+  }
+}
