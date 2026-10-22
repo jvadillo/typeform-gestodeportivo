@@ -110,28 +110,40 @@ python scripts/backup.py ./backups/2026-10-03 --data-dir ./data
 
 El destino debe ser nuevo y estar fuera del directorio de datos. Para una instantánea totalmente consistente con subidas simultáneas, detén el servicio durante la copia. Guarda también el `.env`/`SECRET_KEY` externo de forma segura. Para restaurar, detén el servidor y sustituye su directorio de datos por la copia; conserva la misma clave.
 
-## Futuro VPS compartido
+## Despliegue en el VPS compartido
 
-Se proporciona configuración, **no se ha desplegado nada**. Usa un subdominio dedicado; el frontend utiliza rutas desde `/`, no está preparado para un prefijo como `/formularios/`.
+Producción: **https://forms.gestodeportivo.com**, en el VPS `deploy@2.28.118.113`, que comparte máquina con otros proyectos. Usa un subdominio dedicado; el frontend utiliza rutas desde `/`, no está preparado para un prefijo como `/formularios/`.
 
-1. Copia el proyecto al VPS en su propio directorio. Configura `.env`: `APP_URL=https://formularios.tu-dominio`, contraseña robusta de al menos 12 caracteres y `SECRET_KEY`. Genera la clave con:
+- **DNS**: registro `A` de `forms.gestodeportivo.com` → `2.28.118.113` (zona en los nameservers de webempresa, igual que `partido.gestodeportivo.com`).
+- **Código**: `~/projects/typeform-gestodeportivo`, un repositorio git con `receive.denyCurrentBranch=updateInstead`. Desde local, el remoto `vps` apunta allí; en el VPS, `origin` apunta a GitHub.
+- **Secretos**: `~/projects/typeform-gestodeportivo/.env` (permisos 600, fuera de git): `APP_URL`, `HOST_PORT=8015`, `ADMIN_PASSWORD`, `SECRET_KEY` y credenciales de Google. Para generar otra clave Fernet:
 
-   ```sh
-   python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
-   ```
+  ```sh
+  python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+  ```
 
-2. Elige un puerto libre, por ejemplo `HOST_PORT=8015`. Desde la raíz del proyecto:
+- **Contenedor**: proyecto compose `gesto_forms`, publicado solo en `127.0.0.1:8015`, con datos en el volumen `gesto_forms_gesto_data`.
+- **Proxy**: el Caddy compartido (`~/projects/gateway`, red del host) importa `sites/*.caddy`. `deploy/forms.caddy` se copia como `~/projects/gateway/sites/gesto-forms.caddy`. Caddy obtiene y renueva el certificado TLS. No modifiques los sitios de otras aplicaciones. (`deploy/nginx.conf.example` queda como referencia para servidores con Nginx.)
 
-   ```sh
-   docker compose --env-file .env -p gesto_forms -f deploy/compose.yml up -d --build
-   ```
+Para publicar una nueva versión:
 
-3. Añade un virtual host al proxy inverso existente. `deploy/nginx.conf.example` muestra el enlace a `127.0.0.1:8015`, límite de subida y HTTPS. Adapta los certificados al sistema que ya utilice el VPS. No reemplaces los virtual hosts de otras aplicaciones.
-4. Actualiza la URI autorizada de Google para ese subdominio. Comprueba `/api/health`, inicio de sesión, envío público, Excel, sincronización y reinicio antes de compartirlo.
+```sh
+git push vps main
+ssh deploy@2.28.118.113 'cd ~/projects/typeform-gestodeportivo && git push origin main && docker compose --env-file .env -p gesto_forms -f deploy/compose.yml up -d --build'
+```
 
-El contenedor funciona sin root, con sistema de archivos de solo lectura y un volumen propio para datos; el puerto solo se expone en loopback. La configuración limita CPU y memoria para convivir con otras aplicaciones. Producción se niega a iniciar sin contraseña, clave explícita y origen HTTPS. No necesita Redis, PostgreSQL, otro worker ni un proceso de compilación frontend.
+Si cambia `deploy/forms.caddy`, cópialo al gateway, valídalo y recarga Caddy:
 
-Se recomienda **una instancia** para uso personal. El bloqueo protege frente a trabajadores duplicados en el mismo almacenamiento, pero no convierte SQLite ni la integración en una instalación distribuida. Haz copias de seguridad del volumen y de los secretos antes de actualizar. La imagen y el proxy están preparados documentalmente; su construcción/despliegue no se verificaron en este entorno.
+```sh
+docker exec web-gateway-caddy-1 caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+docker exec web-gateway-caddy-1 caddy reload --config /etc/caddy/Caddyfile --adapter caddyfile
+```
+
+Para Google, registra `https://forms.gestodeportivo.com/api/google/callback` como URI autorizada. Antes de compartir la aplicación, comprueba `/api/health`, el inicio de sesión, un envío público, el Excel, la sincronización y un reinicio.
+
+El contenedor funciona sin root, con sistema de archivos de solo lectura y un volumen propio para datos; el puerto solo se expone en loopback. La configuración limita CPU y memoria para convivir con otras aplicaciones. Producción se niega a iniciar sin contraseña, clave explícita y origen HTTPS. Como el contenedor solo recibe tráfico a través del proxy, `FORWARDED_ALLOW_IPS` permite usar la IP real del cliente para limitar los intentos de inicio de sesión. No necesita Redis, PostgreSQL, otro worker ni un proceso de compilación frontend.
+
+Se recomienda **una instancia** para uso personal. El bloqueo protege frente a trabajadores duplicados en el mismo almacenamiento, pero no convierte SQLite ni la integración en una instalación distribuida. Haz copias de seguridad del volumen y de los secretos antes de actualizar.
 
 ## Pruebas
 
