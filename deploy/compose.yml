@@ -13,6 +13,8 @@ services:
       GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
       GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
       DATA_DIR: /data
+      # Solo se llega al contenedor por el puerto de loopback, a través del proxy inverso.
+      FORWARDED_ALLOW_IPS: "*"
     volumes:
       - gesto_data:/data
     read_only: true
@@ -24,5 +26,10 @@ services:
       - no-new-privileges:true
     mem_limit: 512m
     cpus: 1.0
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 volumes:
   gesto_data:

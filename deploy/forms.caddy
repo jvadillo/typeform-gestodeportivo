@@ -1,0 +1,10 @@
+# Sitio para el Caddy compartido del VPS (projects/gateway/sites/).
+# Caddy gestiona el certificado TLS; la aplicación ya envía CSP, HSTS y el resto de cabeceras.
+forms.gestodeportivo.com {
+	encode zstd gzip
+	header Permissions-Policy "camera=(), microphone=(), geolocation=()"
+	request_body {
+		max_size 10MB
+	}
+	reverse_proxy 127.0.0.1:8015
+}
