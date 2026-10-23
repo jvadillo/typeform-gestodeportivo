@@ -123,7 +123,7 @@ test('a statement screen shows its button, needs no answer and is left out of th
   const markup = screenMarkup(d, statement, {index:0});
   assert.match(markup, /data-next[^>]*>Vamos/);
   assert.equal(/screen-eyebrow|participant-answer|choices/.test(markup), false);
-  assert.match(styleVars(d, statement), /--text-scale:1.125/);
+  assert.match(styleVars(d, statement), /--text-scale:1.2/);
   assert.equal(validateAnswer(statement, undefined), '');
   const journey = new Journey(d); journey.start();
   assert.equal(journey.next(), true);
