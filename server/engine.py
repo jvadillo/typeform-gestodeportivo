@@ -3,6 +3,7 @@ import math
 import re
 
 TYPES = {'choice', 'short', 'long', 'number', 'email', 'statement'}
+SCORE_FORMATS = {'points', 'of', 'slash'}
 SIZES = ['xsmall', 'small', 'medium', 'large', 'xlarge', 'huge']
 
 
@@ -67,6 +68,14 @@ def validate_document(doc):
         if not isinstance(screen.get('description', ''), str) or len(screen.get('description', '')) > 10000:
             errors.append('Descripción demasiado larga o inválida.')
         errors.extend(style_errors(screen.get('style', {})))
+    max_score = doc.get('maxScore')
+    if max_score is not None and (not finite(max_score) or max_score <= 0):
+        errors.append('La puntuación máxima debe ser un número mayor que 0.')
+    for r in results:
+        if r.get('scoreFormat', 'points') not in SCORE_FORMATS or not isinstance(r.get('scoreRing', False), bool):
+            errors.append('Formato de puntuación inválido.')
+        elif r.get('showScore') and max_score is None and (r.get('scoreFormat', 'points') != 'points' or r.get('scoreRing')):
+            errors.append(f'Indica la puntuación máxima para mostrar la puntuación de «{r.get("title")}» con ese formato.')
     qids = {q.get('id') for q in questions}
     for q in questions:
         if q.get('type') not in TYPES:

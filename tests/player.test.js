@@ -119,6 +119,20 @@ test('welcome has no eyebrow and every screen shares the configurable footer',()
   assert.equal(brand({...doc, footer:''}), '');
 });
 
+test('the score uses the chosen text format and an optional ring',()=>{
+  const result = {id:'r', title:'Fin', showScore:true, scoreFormat:'slash', scoreRing:true, style:{}};
+  const markup = screenMarkup({...doc, maxScore:10}, result, {result:true, total:7.5});
+  assert.match(markup, /--score-ratio:0.75/);
+  assert.match(markup, /<strong[^>]*>7,5\/10</);
+  assert.match(screenMarkup({...doc, maxScore:10}, {...result, scoreFormat:'of', scoreRing:false}, {result:true, total:7}), /<strong>7 de 10</);
+  assert.match(screenMarkup({...doc, maxScore:10}, {...result, scoreFormat:'of'}, {result:true, total:7}), /<strong>7<small>de 10<\/small>/);
+  assert.match(screenMarkup({...doc, maxScore:10}, {...result, scoreFormat:'points', scoreRing:false}, {result:true, total:7}), /<strong>7<\/strong>/);
+  assert.match(screenMarkup({...doc, maxScore:10}, result, {result:true, total:-3}), /--score-ratio:0"/);
+  const noMax = screenMarkup(doc, result, {result:true, total:7});
+  assert.equal(noMax.includes('score-ring'), false);
+  assert.match(noMax, /<strong>7</);
+});
+
 test('a statement screen shows its button, needs no answer and is left out of the answers',()=>{
   const statement = {id:'info', type:'statement', title:'Antes de seguir', description:'Un texto', button:'Vamos', required:true, next:'next', style:{textSize:'huge'}};
   const d = {...doc, questions:[statement, doc.questions[1]]};

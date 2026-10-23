@@ -114,6 +114,18 @@ class EngineTests(unittest.TestCase):
         self.doc['questions'][0]['style']['textSize'] = '200%'
         self.assertTrue(any('texto' in e for e in validate_document(self.doc)))
 
+    def test_score_format_needs_a_max_score(self):
+        result = self.doc['results'][0]
+        result.update(showScore=True, scoreFormat='slash', scoreRing=True)
+        self.assertTrue(any('puntuación máxima' in e for e in validate_document(self.doc)))
+        self.doc['maxScore'] = 10
+        self.assertEqual(validate_document(self.doc), [])
+        self.doc['maxScore'] = 0
+        self.assertTrue(any('mayor que 0' in e for e in validate_document(self.doc)))
+        self.doc['maxScore'] = 10
+        result['scoreFormat'] = 'percent'
+        self.assertTrue(any('Formato de puntuación' in e for e in validate_document(self.doc)))
+
 
 class APITests(unittest.TestCase):
     def setUp(self):
