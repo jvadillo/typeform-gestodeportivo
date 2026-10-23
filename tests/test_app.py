@@ -36,6 +36,11 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(validate_document(self.doc), [])
         self.doc['style']['titleSize'] = 'xsmall'
         self.assertEqual(validate_document(self.doc), [])
+        self.doc['style']['optionOpacity'] = 0.3
+        self.assertEqual(validate_document(self.doc), [])
+        self.doc['style']['optionOpacity'] = 1.5
+        self.assertTrue(any('optionOpacity' in e for e in validate_document(self.doc)))
+        self.doc['style']['optionOpacity'] = 1
         self.doc['questions'][0]['style']['titleSize'] = 'arbitrary-css'
         self.assertTrue(any('Tamaño' in e for e in validate_document(self.doc)))
         self.doc['questions'][0]['style'] = {'optionText': 'red;display:none'}

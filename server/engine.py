@@ -27,7 +27,7 @@ def style_errors(style):
     for key in ['background', 'text', 'titleText', 'optionText', 'button', 'buttonText', 'option', 'overlay']:
         if key in style and not re.fullmatch(r'#[0-9a-fA-F]{6}', str(style[key])):
             errors.append(f'Color inválido: {key}.')
-    for key, maximum in [('opacity', 1), ('x', 100), ('y', 100)]:
+    for key, maximum in [('opacity', 1), ('optionOpacity', 1), ('x', 100), ('y', 100)]:
         if key in style and (not finite(style[key]) or not 0 <= style[key] <= maximum):
             errors.append(f'Valor de apariencia inválido: {key}.')
     if style.get('image') and not re.fullmatch(r'/uploads/[a-f0-9-]+\.webp', style['image']):

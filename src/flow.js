@@ -1,4 +1,4 @@
-export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
+export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', optionOpacity: 1, overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
 export const titleSizes = { xsmall: ['Muy pequeño', .5], small: ['Pequeño', .625], medium: ['Mediano', .75], large: ['Grande', .875], xlarge: ['Muy grande', .94], huge: ['Extra grande', 1] };
 export const textSizes = { xsmall: ['Muy pequeño', .7], small: ['Pequeño', .8], medium: ['Mediano', .925], large: ['Grande', 1], xlarge: ['Muy grande', 1.1], huge: ['Extra grande', 1.2] };
 export function resolveStyle(doc, screen = {}) {

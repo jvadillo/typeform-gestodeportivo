@@ -1,9 +1,10 @@
 import {Journey, resolveStyle, titleSizes, textSizes, score, resolveResult, isStatement} from './flow.js';
 import {esc, icon, uid} from './ui.js';
+const withAlpha = (hex, alpha) => alpha >= 1 ? hex : `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(' ')} / ${alpha})`;
 export function styleVars(doc, screen) {
   const s = resolveStyle(doc, screen);
   const fonts = {sans: "'Segoe UI', sans-serif", serif: "Georgia, serif", mono: "'Courier New', monospace"};
-  return `--screen-bg:${s.background};--screen-text:${s.text};--screen-title-text:${s.titleText};--screen-option-text:${s.optionText};--title-scale:${titleSizes[s.titleSize]?.[1] ?? 1};--text-scale:${textSizes[s.textSize]?.[1] ?? 1};--screen-button:${s.button};--screen-button-text:${s.buttonText};--screen-option:${s.option};--screen-image:${s.image ? `url('${s.image}')` : 'none'};--screen-position:${s.x}% ${s.y}%;--screen-overlay:${s.overlay};--screen-opacity:${s.image ? s.opacity : 0};--screen-font:${fonts[s.font] || fonts.sans}`;
+  return `--screen-bg:${s.background};--screen-text:${s.text};--screen-title-text:${s.titleText};--screen-option-text:${s.optionText};--title-scale:${titleSizes[s.titleSize]?.[1] ?? 1};--text-scale:${textSizes[s.textSize]?.[1] ?? 1};--screen-button:${s.button};--screen-button-text:${s.buttonText};--screen-option:${s.option};--screen-option-bg:${withAlpha(s.option, s.optionOpacity)};--screen-image:${s.image ? `url('${s.image}')` : 'none'};--screen-position:${s.x}% ${s.y}%;--screen-overlay:${s.overlay};--screen-opacity:${s.image ? s.opacity : 0};--screen-font:${fonts[s.font] || fonts.sans}`;
 }
 export function answerMarkup(q, value, disabled = false) {
   const off = disabled ? 'disabled' : '';
