@@ -1,6 +1,6 @@
 export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
 export const titleSizes = { small: ['Pequeño', .75], medium: ['Mediano', .875], large: ['Grande', 1], xlarge: ['Muy grande', 1.125], huge: ['Extra grande', 1.25] };
-export const textSizes = { small: ['Pequeño', .875], medium: ['Mediano', 1], large: ['Grande', 1.125], xlarge: ['Muy grande', 1.25], huge: ['Extra grande', 1.375] };
+export const textSizes = { xsmall: ['Muy pequeño', .625], small: ['Pequeño', .75], medium: ['Mediano', .875], large: ['Grande', .95], xlarge: ['Muy grande', 1.04], huge: ['Extra grande', 1.125] };
 export function resolveStyle(doc, screen = {}) {
   const style = {...baseStyle, ...doc.style, ...screen.style};
   // Older forms keep their original colors until these overrides are chosen.

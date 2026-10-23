@@ -122,7 +122,7 @@ test('a statement screen shows its button, needs no answer and is left out of th
   const markup = screenMarkup(d, statement, {index:0});
   assert.match(markup, /data-next[^>]*>Vamos/);
   assert.equal(/screen-eyebrow|participant-answer|choices/.test(markup), false);
-  assert.match(styleVars(d, statement), /--text-scale:1.375/);
+  assert.match(styleVars(d, statement), /--text-scale:1.125/);
   assert.equal(validateAnswer(statement, undefined), '');
   const journey = new Journey(d); journey.start();
   assert.equal(journey.next(), true);
@@ -130,5 +130,6 @@ test('a statement screen shows its button, needs no answer and is left out of th
   journey.set('ok');
   assert.deepEqual(journey.activeAnswers(), {branch:'ok'});
   assert.equal(resolveStyle(doc).textSize, 'medium');
-  assert.equal(Object.keys(textSizes).length, 5);
+  assert.equal(Object.keys(textSizes).length, 6);
+  assert.equal(resolveStyle({...doc, style:{textSize:'xsmall'}}).textSize, 'xsmall');
 });

@@ -102,7 +102,7 @@ class EngineTests(unittest.TestCase):
         self.assertTrue(any('botón' in e for e in validate_document(self.doc)))
 
     def test_text_size_is_validated(self):
-        self.doc['style']['textSize'] = 'huge'
+        self.doc['style']['textSize'] = 'xsmall'
         self.assertEqual(validate_document(self.doc), [])
         self.doc['questions'][0]['style']['textSize'] = '200%'
         self.assertTrue(any('texto' in e for e in validate_document(self.doc)))

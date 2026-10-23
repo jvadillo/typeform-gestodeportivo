@@ -4,6 +4,7 @@ import re
 
 TYPES = {'choice', 'short', 'long', 'number', 'email', 'statement'}
 SIZES = ['small', 'medium', 'large', 'xlarge', 'huge']
+TEXT_SIZES = ['xsmall'] + SIZES
 
 
 def is_statement(q):
@@ -36,8 +37,8 @@ def style_errors(style):
         errors.append('Tipografía inválida.')
     if style.get('titleSize', 'large') not in SIZES:
         errors.append('Tamaño del título inválido. Elige uno de los cinco tamaños disponibles.')
-    if style.get('textSize', 'medium') not in SIZES:
-        errors.append('Tamaño del texto inválido. Elige uno de los cinco tamaños disponibles.')
+    if style.get('textSize', 'medium') not in TEXT_SIZES:
+        errors.append('Tamaño del texto inválido. Elige uno de los seis tamaños disponibles.')
     return errors
 
 
