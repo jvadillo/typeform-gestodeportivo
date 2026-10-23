@@ -112,6 +112,7 @@ test('sidebar arrows move the named question without changing IDs or destination
 test('welcome has no eyebrow and every screen shares the configurable footer',()=>{
   const brand = d => screenMarkup(d, d.questions[0], {index:0}).match(/participant-brand">([^<]*)</)[1];
   assert.equal(screenMarkup(doc, doc.welcome, {welcome:true}).includes('screen-eyebrow'), false);
+  assert.equal(/screen-eyebrow|OPCIONAL|OBLIGATORIA/.test(screenMarkup(doc, doc.questions[0], {index:3})), false);
   assert.equal(brand(doc), 'gesto.');
   const custom = {...doc, footer:'Club <Gesto>'};
   for (const [screen, options] of [[custom.welcome,{welcome:true}],[custom.questions[1],{index:1}],[custom.results[0],{result:true}]])
