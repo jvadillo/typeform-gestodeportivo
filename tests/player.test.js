@@ -47,8 +47,9 @@ test('legacy colors, independent overrides and five responsive title sizes',()=>
   const style=resolveStyle(themed,{style:{titleText:'#aabbcc',titleSize:'huge'}});
   assert.equal(style.titleText,'#aabbcc');assert.equal(style.optionText,'#778899');
   assert.equal(resolveStyle(themed,{}).titleSize,'small');
-  assert.equal(Object.keys(titleSizes).length,5);
-  assert.match(styleVars(themed,{style:{titleSize:'huge'}}),/--title-scale:1.25;/);
+  assert.equal(Object.keys(titleSizes).length,6);
+  assert.match(styleVars(themed,{style:{titleSize:'huge'}}),/--title-scale:1;/);
+  assert.match(styleVars(themed,{style:{titleSize:'xsmall'}}),/--title-scale:0.5;/);
 });
 test('selection shows feedback before following its conditional destination once',t=>{
   const {player,tick,classes}=fixture(t);

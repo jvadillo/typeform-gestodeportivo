@@ -34,6 +34,8 @@ class EngineTests(unittest.TestCase):
         self.assertEqual(validate_document(self.doc), [])
         self.doc['style'].update(titleText='#123456', optionText='#abcdef', titleSize='huge')
         self.assertEqual(validate_document(self.doc), [])
+        self.doc['style']['titleSize'] = 'xsmall'
+        self.assertEqual(validate_document(self.doc), [])
         self.doc['questions'][0]['style']['titleSize'] = 'arbitrary-css'
         self.assertTrue(any('Tamaño' in e for e in validate_document(self.doc)))
         self.doc['questions'][0]['style'] = {'optionText': 'red;display:none'}

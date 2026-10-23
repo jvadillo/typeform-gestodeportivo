@@ -1,5 +1,5 @@
 export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
-export const titleSizes = { small: ['Pequeño', .75], medium: ['Mediano', .875], large: ['Grande', 1], xlarge: ['Muy grande', 1.125], huge: ['Extra grande', 1.25] };
+export const titleSizes = { xsmall: ['Muy pequeño', .5], small: ['Pequeño', .625], medium: ['Mediano', .75], large: ['Grande', .875], xlarge: ['Muy grande', .94], huge: ['Extra grande', 1] };
 export const textSizes = { xsmall: ['Muy pequeño', .625], small: ['Pequeño', .75], medium: ['Mediano', .875], large: ['Grande', .95], xlarge: ['Muy grande', 1.04], huge: ['Extra grande', 1.125] };
 export function resolveStyle(doc, screen = {}) {
   const style = {...baseStyle, ...doc.style, ...screen.style};
