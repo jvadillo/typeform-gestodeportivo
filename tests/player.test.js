@@ -128,6 +128,8 @@ test('the score uses the chosen text format and an optional ring',()=>{
   assert.match(screenMarkup({...doc, maxScore:10}, {...result, scoreFormat:'of'}, {result:true, total:7}), /<strong>7<small>de 10<\/small>/);
   assert.match(screenMarkup({...doc, maxScore:10}, {...result, scoreFormat:'points', scoreRing:false}, {result:true, total:7}), /<strong>7<\/strong>/);
   assert.match(screenMarkup({...doc, maxScore:10}, result, {result:true, total:-3}), /--score-ratio:0"/);
+  assert.match(markup, /<span>Tu puntuación:<\/span><div class="score-ring"/);
+  assert.equal(/screen-eyebrow|Hecho para escucharte/.test(markup), false);
   const noMax = screenMarkup(doc, result, {result:true, total:7});
   assert.equal(noMax.includes('score-ring'), false);
   assert.match(noMax, /<strong>7</);
