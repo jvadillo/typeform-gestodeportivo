@@ -37,6 +37,15 @@ class EngineTests(unittest.TestCase):
         self.doc['questions'][0]['style'] = {'optionText': 'red;display:none'}
         self.assertTrue(any('Color' in e for e in validate_document(self.doc)))
 
+    def test_footer_is_optional_text_with_limit(self):
+        self.doc['footer'] = ''
+        self.assertEqual(validate_document(self.doc), [])
+        self.doc['footer'] = 'Club Gesto'
+        self.assertEqual(validate_document(self.doc), [])
+        for footer in ['x' * 101, 42]:
+            self.doc['footer'] = footer
+            self.assertTrue(any('pie' in e for e in validate_document(self.doc)))
+
     def test_valid_example_two_branches_and_boundaries(self):
         self.assertEqual(validate_document(self.doc), [])
         result = evaluate(self.doc, {'interes': 'fuerza', 'entrenamiento': 'regular', 'nombre': 'Ana'})

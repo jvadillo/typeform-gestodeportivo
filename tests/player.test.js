@@ -6,7 +6,7 @@ import {Journey, resolveStyle, titleSizes} from '../src/flow.js';
 globalThis.document = {querySelector: () => null};
 globalThis.CSS = {escape: value => value};
 globalThis.window = {matchMedia: () => ({matches: false})};
-const {Player, styleVars} = await import('../src/player.js');
+const {Player, styleVars, screenMarkup} = await import('../src/player.js');
 const {Editor} = await import('../src/editor.js');
 const doc = {
   welcome: {id: 'welcome', title: 'Hola'}, style: {text: '#112233'},
@@ -104,4 +104,14 @@ test('sidebar arrows move the named question without changing IDs or destination
   assert.deepEqual(editor.doc.questions.map(q=>q.id),['branch','route']);
   assert.equal(editor.doc.questions[1].options[0].next,'branch');assert.equal(editor.selected,'branch');assert.equal(editor.dirty,true);
   assert.deepEqual(scroll,{scrollTop:71,scrollLeft:42});
+});
+
+test('welcome has no eyebrow and every screen shares the configurable footer',()=>{
+  const brand = d => screenMarkup(d, d.questions[0], {index:0}).match(/participant-brand">([^<]*)</)[1];
+  assert.equal(screenMarkup(doc, doc.welcome, {welcome:true}).includes('screen-eyebrow'), false);
+  assert.equal(brand(doc), 'gesto.');
+  const custom = {...doc, footer:'Club <Gesto>'};
+  for (const [screen, options] of [[custom.welcome,{welcome:true}],[custom.questions[1],{index:1}],[custom.results[0],{result:true}]])
+    assert.match(screenMarkup(custom, screen, options), /participant-brand">Club &lt;Gesto&gt;</);
+  assert.equal(brand({...doc, footer:''}), '');
 });

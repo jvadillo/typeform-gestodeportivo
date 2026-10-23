@@ -45,6 +45,8 @@ def validate_document(doc):
     screens = [doc.get('welcome', {})] + questions + results
     ids = set()
     errors.extend(style_errors(doc.get('style', {})))
+    if not isinstance(doc.get('footer', ''), str) or len(doc.get('footer', '')) > 100:
+        errors.append('El texto del pie debe tener como máximo 100 caracteres.')
     for screen in screens:
         if not isinstance(screen, dict):
             return ['Pantalla inválida.']
