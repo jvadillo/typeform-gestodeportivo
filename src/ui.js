@@ -37,9 +37,9 @@ export function modal(title, content, wide = false) {
   dialog.addEventListener('click', e => {if (e.target === dialog) dialog.close();});
   document.body.append(dialog); dialog.showModal(); return dialog;
 }
-export async function confirmDelete(title, detail) {
+export async function confirmDelete(title, detail, label = 'Eliminar', symbol = 'trash') {
   return new Promise(resolve => {
-    const dialog = modal(title, `<p class="dialog-text">${esc(detail)}</p><div class="dialog-actions">${button('cancel', 'Cancelar', null)}${button('confirm', 'Eliminar', 'trash', 'danger')}</div>`);
+    const dialog = modal(title, `<p class="dialog-text">${esc(detail)}</p><div class="dialog-actions">${button('cancel', 'Cancelar', null)}${button('confirm', label, symbol, 'danger')}</div>`);
     let done = false;
     dialog.querySelector('[data-action="confirm"]').onclick = () => {done = true; resolve(true); dialog.close();};
     dialog.querySelector('[data-action="cancel"]').onclick = () => dialog.close();

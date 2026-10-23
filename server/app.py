@@ -23,7 +23,7 @@ from .storage import ROOT, DATA, init_db, connect, dumps, utcnow, setting, put_s
 from .security import admin, init_security, hash_password, verify_password, sign_version, COOKIE, APP_URL, PRODUCTION
 from .engine import FormError, evaluate, validate_document
 from .seed import blank_document, example_document
-from .google import GoogleClient, GoogleError, process_jobs, BASE_COLUMNS, sheet_range
+from .google import GoogleClient, GoogleError, process_jobs, resync_form, delete_submissions, BASE_COLUMNS, sheet_range
 from .export import make_workbook
 
 init_db()
@@ -352,6 +352,13 @@ def submissions(fid: str, start: str = '', end: str = ''):
     return [{**dict(row), 'answers': json.loads(row['answers'])} for row in rows]
 
 
+@app.delete('/api/forms/{fid}/submissions', dependencies=[Depends(admin)])
+async def delete_all_submissions(fid: str):
+    with connect() as db:
+        get_form(db, fid)
+    return {'deleted': await asyncio.to_thread(delete_submissions, google, fid)}
+
+
 @app.post('/api/submissions/{sid}/retry', dependencies=[Depends(admin)])
 def retry(sid: str):
     with connect() as db:
@@ -426,6 +433,13 @@ async def save_integration(fid: str, request: Request):
         did = db.execute('SELECT id FROM destinations WHERE spreadsheet=? AND sheet_id=?', (spreadsheet, props['sheetId'])).fetchone()['id']
         db.execute('INSERT INTO integrations VALUES(?,?,1) ON CONFLICT(form_id) DO UPDATE SET destination_id=excluded.destination_id,enabled=1', (fid, did))
     return {'ok': True}
+
+
+@app.post('/api/forms/{fid}/integration/resync', dependencies=[Depends(admin)])
+async def resync_integration(fid: str):
+    with connect() as db:
+        get_form(db, fid)
+    return {'synced': await asyncio.to_thread(resync_form, google, fid)}
 
 
 @app.get('/api/google/connect')

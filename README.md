@@ -39,7 +39,7 @@ En este entorno se pudo iniciar y probar con `python -m server`, usando las bibl
 3. El borrador se guarda automáticamente; **Guardar** confirma el guardado de inmediato. Puedes editar un borrador incompleto. Los avisos impiden probar o publicar recorridos inválidos.
 4. **Probar** ejecuta el recorrido y la puntuación en una ventana de vista previa, sin crear envíos. La vista central del editor muestra únicamente la apariencia de la pantalla seleccionada.
 5. **Publicar** crea una instantánea inmutable y ofrece un enlace público. Editar o guardar no altera ese enlace hasta publicar otra versión.
-6. Completa el enlace público y abre **Respuestas**. El detalle incluye identificadores, etiquetas históricas, puntuación, resultado y estado de sincronización. **Descargar Excel** respeta los filtros actuales.
+6. Completa el enlace público y abre **Respuestas**. El detalle incluye identificadores, etiquetas históricas, puntuación, resultado y estado de sincronización. **Descargar Excel** respeta los filtros actuales. Con Google Sheets activado aparece **Abrir Google Sheets**. **Eliminar respuestas** borra todas las respuestas del formulario (no solo las filtradas) y sus filas en Google Sheets.
 
 El ejemplo tiene dos ramas (`Sentirme más fuerte` / `Encontrar mi equilibrio`), una pregunta común opcional y dos resultados: menos de 4 puntos o desde 4 puntos. Una pantalla oscura y otras claras permiten comprobar la herencia del diseño.
 
@@ -82,6 +82,8 @@ Se solicita `https://www.googleapis.com/auth/spreadsheets`, que permite acceso a
 - Se escribe con [`valueInputOption=RAW`](https://developers.google.com/workspace/sheets/api/reference/rest/v4/spreadsheets.values/update): las respuestas son datos literales, no fórmulas.
 - Mantén el orden de filas y columnas y los encabezados de la pestaña de integración. Usa otra pestaña para ordenar, resumir o editar datos. La aplicación detecta encabezados cambiados y filas reservadas ocupadas para evitar sobrescribir datos ajenos.
 - Una sola instalación debe ser propietaria de cada pestaña de destino. El bloqueo no coordina bases de datos distintas en otros servidores. No se redirigen silenciosamente trabajos cuyo destino se haya eliminado.
+- **Conexiones → Sincronizar todo de nuevo** reescribe la pestaña de destino con todas las respuestas guardadas, de la más antigua a la más reciente, y vacía el resto de filas y columnas. Sirve para volcar las respuestas anteriores a la conexión o recuperar una hoja desordenada. Las columnas se recalculan con el título más reciente de cada pregunta, y si otros formularios comparten la pestaña, sus filas se conservan. Se escribe antes de vaciar, de modo que un fallo nunca deja la pestaña vacía.
+- **Eliminar respuestas** reescribe del mismo modo cada pestaña a la que se enviaron, sin las filas del formulario, y después las borra de la base de datos. Si Google falla, no se borra nada. Una pestaña o un documento que ya no existen no impiden el borrado.
 - El token de Google se cifra en SQLite con Fernet. Mantén `SECRET_KEY` estable y privado. En local se genera `data/secret.key` si no lo configuras.
 
 **Estado de verificación:** integración completa y pruebas automatizadas con un transporte de Sheets simulado, incluida la pérdida de confirmación después de escribir. La comprobación con una cuenta real está pendiente de conectar tus credenciales. No se ha creado ni escrito ninguna hoja real durante el desarrollo.

@@ -291,9 +291,15 @@ class FakeSheets:
         raise AssertionError(cell_range)
     def ensure_size(self,*args): pass
     def write(self,spreadsheet,range,rows):
-        row=int(range.rsplit('A',1)[1]);self.rows[row]=rows[0];self.calls.append(row)
+        row=int(range.rsplit('A',1)[1]);self.calls.append(row)
+        for offset,values in enumerate(rows):self.rows[row+offset]=values
         if self.fail_after_write and row>1:
             self.fail_after_write=False;raise OSError('Lost success response')
+    def clear(self,spreadsheet,ranges):
+        for cell_range in ranges:
+            start=cell_range.rsplit('!',1)[1].split(':')[0]
+            if start.startswith('A'):
+                self.rows={i:r for i,r in self.rows.items() if i<int(start[1:])}
 
 
 class SyncTests(unittest.TestCase):
@@ -358,6 +364,61 @@ class SyncTests(unittest.TestCase):
             google.write('test-spreadsheet',"'Hoja'!A2",[['=SUM(1,2)','+literal','@literal',0]])
             self.assertEqual(request.call_args.kwargs['params']['valueInputOption'],'RAW')
             self.assertEqual(request.call_args.kwargs['json']['values'][0][0],'=SUM(1,2)')
+
+    def connect_sheet(self, fid=None):
+        destination=str(uuid4())
+        with connect() as db:
+            db.execute('INSERT INTO destinations(id,spreadsheet,sheet_id,title) VALUES(?,?,0,?)',(destination,'document-'+destination,'Respuestas'))
+            db.execute('INSERT INTO integrations VALUES(?,?,1)',(fid or self.fid,destination))
+        return destination
+
+    def test_resync_dumps_earlier_submissions_and_clears_stale_rows(self):
+        from unittest.mock import patch
+        import server.app
+        first,second=self.submission(),self.submission()
+        for payload in (first,second):
+            self.client.post(f'/api/public/{self.fid}/submit',json=payload)
+        self.assertEqual(self.client.post(f'/api/forms/{self.fid}/integration/resync').status_code,422)
+        self.connect_sheet()
+        fake=FakeSheets();fake.rows={1:['viejo'],2:['a mano'],7:['resto']}
+        with patch.object(server.app,'google',fake):
+            response=self.client.post(f'/api/forms/{self.fid}/integration/resync')
+        self.assertEqual(response.json(),{'synced':2})
+        self.assertEqual(sorted(fake.rows),[1,2,3])
+        self.assertEqual(fake.rows[1][0],'Identificador del envío')
+        self.assertEqual({fake.rows[2][0],fake.rows[3][0]},{first['id'],second['id']})
+        rows=self.client.get(f'/api/forms/{self.fid}/submissions').json()
+        self.assertEqual({r['sync_status'] for r in rows},{'synced'})
+        # Later submissions keep appending after the rewritten rows.
+        later=self.submission();self.client.post(f'/api/public/{self.fid}/submit',json=later)
+        process_jobs(fake)
+        self.assertEqual(fake.rows[4][0],later['id'])
+
+    def test_delete_responses_removes_their_rows_and_keeps_other_forms(self):
+        from unittest.mock import patch
+        import server.app
+        destination=self.connect_sheet()
+        mine=self.submission();self.client.post(f'/api/public/{self.fid}/submit',json=mine)
+        own,self.fid=self.fid,self.client.post('/api/forms',json={'name':'Otro'}).json()['id']
+        self.save(self.doc)
+        with connect() as db:
+            db.execute('INSERT INTO integrations VALUES(?,?,1)',(self.fid,destination))
+        other=self.submission();self.client.post(f'/api/public/{self.fid}/submit',json=other)
+        other_form,self.fid=self.fid,own
+        fake=FakeSheets();process_jobs(fake)
+        self.assertEqual(len(fake.rows),3)
+        with patch.object(server.app,'google',fake):
+            response=self.client.delete(f'/api/forms/{self.fid}/submissions')
+        self.assertEqual(response.json(),{'deleted':1})
+        self.assertEqual(sorted(fake.rows),[1,2])
+        self.assertEqual(fake.rows[2][0],other['id'])
+        self.assertFalse(any(own in title for title in fake.rows[1]))
+        self.assertEqual(self.client.get(f'/api/forms/{self.fid}/submissions').json(),[])
+        self.assertEqual(len(self.client.get(f'/api/forms/{other_form}/submissions').json()),1)
+        # A tab that no longer exists does not block deleting the responses.
+        again=self.submission();self.client.post(f'/api/public/{self.fid}/submit',json=again)
+        with patch.object(fake,'metadata',side_effect=GoogleError('No existe',404)),patch.object(server.app,'google',fake):
+            self.assertEqual(self.client.delete(f'/api/forms/{self.fid}/submissions').json(),{'deleted':1})
 
     def test_retry_limit_and_pending_destination_survive_new_worker(self):
         from unittest.mock import patch
