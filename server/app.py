@@ -80,6 +80,8 @@ async def security_headers(request, call_next):
     response.headers['Content-Security-Policy'] = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
     if request.url.path.startswith('/api'):
         response.headers['Cache-Control'] = 'no-store'
+    elif not request.url.path.startswith('/uploads'):
+        response.headers['Cache-Control'] = 'no-cache'
     if PRODUCTION:
         response.headers['Strict-Transport-Security'] = 'max-age=31536000'
     return response
