@@ -48,8 +48,8 @@ test('legacy colors, independent overrides and five responsive title sizes',()=>
   assert.equal(style.titleText,'#aabbcc');assert.equal(style.optionText,'#778899');
   assert.equal(resolveStyle(themed,{}).titleSize,'small');
   assert.equal(Object.keys(titleSizes).length,6);
-  assert.match(styleVars(themed,{style:{titleSize:'huge'}}),/--title-scale:1;/);
-  assert.match(styleVars(themed,{style:{titleSize:'xsmall'}}),/--title-scale:0.5;/);
+  assert.match(styleVars(themed,{style:{titleSize:'huge'}}),/--title-scale:0.925;/);
+  assert.match(styleVars(themed,{style:{titleSize:'xsmall'}}),/--title-scale:0.45;/);
   assert.match(styleVars({style:{option:'#ff8000'}},{}),/--screen-option-bg:#ff8000;/);
   assert.match(styleVars({style:{option:'#ff8000',optionOpacity:.4}},{}),/--screen-option-bg:rgb\(255 128 0 \/ 0.4\);/);
 });
