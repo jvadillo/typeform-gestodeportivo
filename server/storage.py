@@ -37,6 +37,9 @@ def init_db():
     (DATA / 'uploads').mkdir(exist_ok=True)
     with connect() as db:
         db.executescript((ROOT / 'server/schema.sql').read_text())
+        if 'slug' not in {c['name'] for c in db.execute('PRAGMA table_info(forms)')}:
+            db.execute('ALTER TABLE forms ADD COLUMN slug TEXT')
+        db.execute('CREATE UNIQUE INDEX IF NOT EXISTS forms_slug ON forms(slug)')
 
 
 def setting(db, key, default=None):

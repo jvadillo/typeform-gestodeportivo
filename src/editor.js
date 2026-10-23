@@ -177,7 +177,7 @@ export class Editor {
         const player=new Player(dialog.querySelector('#preview-player'),structuredClone(this.doc),{preview:true});dialog.addEventListener('close',()=>player.destroy());
       }
       if(action==='publish'){
-        target.disabled=true;await this.save();const result=await api(`/forms/${this.form.id}/publish`,{method:'POST'});this.form.published=result.version;this.render();this.share(result.url);toast(`Versión ${result.version} publicada`);
+        target.disabled=true;await this.save();const result=await api(`/forms/${this.form.id}/publish`,{method:'POST'});this.form.published=result.version;this.render();this.share();toast(`Versión ${result.version} publicada`);
       }
       if(action==='share')this.share();
       if(action==='filter-responses')await this.loadResponses();
@@ -219,9 +219,24 @@ export class Editor {
       style.image=item.dataset.image;this.markDirty();this.render();dialog.close();toast('Imagen aplicada');
     });
   }
-  share(url = location.origin+'/f/'+this.form.id) {
-    const dialog=modal('Tu formulario está listo',`<p class="dialog-text">Comparte este enlace. Las nuevas visitas verán la versión ${this.form.published}.</p><div class="share-url">${input('id="share-url" readonly aria-label="Enlace público"',url)}${button('copy-link','Copiar','copy','primary')}</div><a class="btn open-link" href="${esc(url)}" target="_blank" rel="noopener">Abrir formulario ${icon('arrow')}</a>`);
-    dialog.querySelector('[data-action="copy-link"]').onclick=async()=>{try{await navigator.clipboard.writeText(url);toast('Enlace copiado');}catch{dialog.querySelector('input').select();toast('Selecciona y copia el enlace.');}};
+  share() {
+    const link=()=>location.origin+'/f/'+(this.form.slug||this.form.id);
+    const dialog=modal('Tu formulario está listo',`<p class="dialog-text">Comparte este enlace. Las nuevas visitas verán la versión ${this.form.published}.</p><div class="share-url">${input('id="share-url" readonly aria-label="Enlace público"',link())}${button('copy-link','Copiar','copy','primary')}</div><a class="btn open-link" href="${esc(link())}" target="_blank" rel="noopener">Abrir formulario ${icon('arrow')}</a><div class="custom-link"><h3>Enlace personalizado</h3><p>Una dirección fácil de recordar. El enlace con el identificador sigue funcionando.</p><label class="slug-input"><span>${esc(location.host)}/f/</span><input id="slug" value="${esc(this.form.slug||'')}" maxlength="60" placeholder="mi-formulario" autocomplete="off" spellcheck="false" aria-label="Enlace personalizado" aria-describedby="slug-status"/></label><p class="slug-status" id="slug-status" aria-live="polite"></p><div class="inline-actions">${button('save-slug','Guardar enlace','check','primary')}${button('remove-slug','Quitar enlace',null,'subtle')}</div></div>`);
+    const shareUrl=dialog.querySelector('#share-url'),slug=dialog.querySelector('#slug'),status=dialog.querySelector('.slug-status'),save=dialog.querySelector('[data-action="save-slug"]'),remove=dialog.querySelector('[data-action="remove-slug"]');
+    const show=(text,kind='')=>{status.textContent=text;status.className='slug-status '+kind;};
+    const typed=()=>slug.value.replace(/-+$/,'');
+    const refresh=()=>{shareUrl.value=link();dialog.querySelector('.open-link').href=link();remove.hidden=!this.form.slug;save.disabled=!typed()||typed()===this.form.slug;};
+    refresh();
+    let timer;
+    slug.oninput=()=>{
+      // Lowercase, no accents, and any other character becomes a hyphen.
+      slug.value=slug.value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+/,'');
+      refresh();show('');clearTimeout(timer);const value=typed();if(!value||value===this.form.slug)return;
+      timer=setTimeout(async()=>{try{const result=await api(`/slugs/${encodeURIComponent(value)}?form_id=${this.form.id}`);if(typed()!==value)return;show(result.available?'Disponible':result.message,result.available?'ok':'error');save.disabled=!result.available;}catch{}},300);
+    };
+    save.onclick=async()=>{save.disabled=true;try{const result=await api(`/forms/${this.form.id}/slug`,{method:'PUT',body:{slug:typed()}});this.form.slug=result.slug;slug.value=result.slug;refresh();show('Enlace guardado','ok');toast('Enlace personalizado guardado');}catch(error){show(error.message,'error');save.disabled=false;}};
+    remove.onclick=async()=>{remove.disabled=true;try{await api(`/forms/${this.form.id}/slug`,{method:'PUT',body:{slug:''}});this.form.slug=null;slug.value='';refresh();show('');toast('Enlace personalizado quitado');}catch(error){show(error.message,'error');}finally{remove.disabled=false;}};
+    dialog.querySelector('[data-action="copy-link"]').onclick=async()=>{try{await navigator.clipboard.writeText(shareUrl.value);toast('Enlace copiado');}catch{shareUrl.select();toast('Selecciona y copia el enlace.');}};
   }
   async loadResponses(){[this.responses,this.integration]=await Promise.all([api(`/forms/${this.form.id}/submissions?`+new URLSearchParams(this.dateFilters||{})),api(`/forms/${this.form.id}/integration`)]);this.render();}
   responsesMarkup(){

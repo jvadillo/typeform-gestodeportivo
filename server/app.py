@@ -230,6 +230,45 @@ async def save_form(fid: str, request: Request):
     return {'revision': revision, 'errors': errors}
 
 
+SLUG = re.compile(r'[a-z0-9](?:[a-z0-9-]{1,58}[a-z0-9])')
+UUID = re.compile(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}')
+
+
+def slug_error(slug):
+    if not SLUG.fullmatch(slug):
+        return 'Usa de 3 a 60 letras minúsculas, números o guiones, sin guion al principio ni al final.'
+    if UUID.fullmatch(slug):
+        return 'El enlace no puede tener la forma de un identificador de formulario.'
+    return ''
+
+
+@app.get('/api/slugs/{slug}', dependencies=[Depends(admin)])
+def slug_availability(slug: str, form_id: str = ''):
+    error = slug_error(slug)
+    if not error:
+        with connect() as db:
+            if db.execute('SELECT 1 FROM forms WHERE slug=? AND id!=?', (slug, form_id)).fetchone():
+                error = 'Ese enlace ya lo usa otro formulario.'
+    return {'available': not error, 'message': error}
+
+
+@app.put('/api/forms/{fid}/slug', dependencies=[Depends(admin)])
+async def save_slug(fid: str, request: Request):
+    data = await body(request)
+    slug = data.get('slug') or None
+    if slug is not None:
+        error = slug_error(slug) if isinstance(slug, str) else 'Enlace inválido.'
+        if error:
+            raise HTTPException(422, error)
+    with connect() as db:
+        get_form(db, fid)
+        try:
+            db.execute('UPDATE forms SET slug=? WHERE id=?', (slug, fid))
+        except sqlite3.IntegrityError:
+            raise HTTPException(409, 'Ese enlace ya lo usa otro formulario.') from None
+    return {'slug': slug}
+
+
 @app.post('/api/forms/{fid}/duplicate', dependencies=[Depends(admin)])
 def duplicate_form(fid: str):
     with connect() as db:
@@ -295,12 +334,14 @@ async def upload_image(file: UploadFile = File(...)):
     return {'url': '/uploads/' + name}
 
 
-@app.get('/api/public/{fid}')
-def public_form(fid: str):
+@app.get('/api/public/{key}')
+def public_form(key: str):
+    # Either the form ID or its custom link.
     with connect() as db:
-        row = db.execute('SELECT v.* FROM versions v JOIN forms f ON f.id=v.form_id AND f.published=v.version WHERE f.id=?', (fid,)).fetchone()
+        row = db.execute('SELECT v.* FROM versions v JOIN forms f ON f.id=v.form_id AND f.published=v.version WHERE f.id=? OR f.slug=?', (key, key.lower())).fetchone()
         if not row:
             raise HTTPException(404, 'Este formulario todavía no está publicado o ya no existe.')
+    fid = row['form_id']
     return {'id': fid, 'version': row['version'], 'document': json.loads(row['document']), 'token': sign_version(KEY, fid, row['version'])}
 
 

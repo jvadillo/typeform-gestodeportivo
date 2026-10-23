@@ -244,6 +244,25 @@ class APITests(unittest.TestCase):
         self.assertEqual(gallery[:2], urls[::-1])
         self.assertIn(TestClient(app).get('/api/uploads').status_code, (401, 403))
 
+    def test_custom_link_is_unique_and_opens_the_published_form(self):
+        self.publish()
+        self.assertEqual(self.client.get('/api/slugs/mi-formulario', params={'form_id': self.fid}).json(), {'available': True, 'message': ''})
+        self.assertEqual(self.client.put(f'/api/forms/{self.fid}/slug', json={'slug': 'mi-formulario'}).json(), {'slug': 'mi-formulario'})
+        self.assertEqual(self.client.get('/api/slugs/mi-formulario', params={'form_id': self.fid}).json()['available'], True)
+        public = self.client.get('/api/public/Mi-Formulario').json()
+        self.assertEqual(public['id'], self.fid)
+        self.assertEqual(self.client.get('/api/forms/' + self.fid).json()['slug'], 'mi-formulario')
+        other = self.client.post('/api/forms', json={'name': 'Otro'}).json()['id']
+        self.assertFalse(self.client.get('/api/slugs/mi-formulario', params={'form_id': other}).json()['available'])
+        self.assertEqual(self.client.put(f'/api/forms/{other}/slug', json={'slug': 'mi-formulario'}).status_code, 409)
+        for bad in ['ab', '-mal', 'mal-', 'con espacio', 'MAYUS', str(uuid4())]:
+            self.assertEqual(self.client.put(f'/api/forms/{other}/slug', json={'slug': bad}).status_code, 422, bad)
+        duplicate = self.client.post(f'/api/forms/{self.fid}/duplicate').json()['id']
+        self.assertIsNone(self.client.get('/api/forms/' + duplicate).json()['slug'])
+        self.assertEqual(self.client.put(f'/api/forms/{self.fid}/slug', json={'slug': ''}).json(), {'slug': None})
+        self.assertEqual(self.client.get('/api/public/mi-formulario').status_code, 404)
+        self.assertEqual(self.client.put(f'/api/forms/{other}/slug', json={'slug': 'mi-formulario'}).status_code, 200)
+
     def test_duplicate_is_draft_only_and_delete_cascades(self):
         self.client.post(f'/api/public/{self.fid}/submit',json=self.submission())
         copy_id = self.client.post(f'/api/forms/{self.fid}/duplicate').json()['id']
