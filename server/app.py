@@ -286,7 +286,8 @@ async def upload_image(file: UploadFile = File(...)):
             picture = ImageOps.exif_transpose(picture).convert('RGB')
             picture.thumbnail((2560, 2560))
             name = str(uuid4()) + '.webp'
-            picture.save(DATA / 'uploads' / name, 'WEBP', quality=88)
+            # Quality 80 with the slowest/most efficient method: about a third lighter than 88 with no visible difference.
+            picture.save(DATA / 'uploads' / name, 'WEBP', quality=80, method=6)
     except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError, Image.DecompressionBombWarning):
         raise HTTPException(422, 'Sube una imagen JPEG, PNG o WebP válida de hasta 25 megapíxeles.')
     return {'url': '/uploads/' + name}
