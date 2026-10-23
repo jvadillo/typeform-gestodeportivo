@@ -35,7 +35,7 @@ En este entorno se pudo iniciar y probar con `python -m server`, usando las bibl
 ## Primer recorrido
 
 1. Abre **Tu próximo paso**, el formulario de ejemplo que se crea una sola vez al iniciar una base de datos vacía.
-2. En la lista izquierda, elige bienvenida, preguntas o resultados. Edita contenido, diseño y lógica en el panel derecho. En móvil los paneles se colocan uno debajo del otro.
+2. En la lista izquierda, elige bienvenida, contenido o resultados. **Añadir contenido** abre un selector con los tipos de pregunta y la **pantalla de texto** (título, texto y botón, sin respuesta). Edita contenido, diseño y lógica en el panel derecho; en Diseño se ajustan, entre otros, el tamaño del título y del texto. En móvil los paneles se colocan uno debajo del otro.
 3. El borrador se guarda automáticamente; **Guardar** confirma el guardado de inmediato. Puedes editar un borrador incompleto. Los avisos impiden probar o publicar recorridos inválidos.
 4. **Probar** ejecuta el recorrido y la puntuación en una ventana de vista previa, sin crear envíos. La vista central del editor muestra únicamente la apariencia de la pantalla seleccionada.
 5. **Publicar** crea una instantánea inmutable y ofrece un enlace público. Editar o guardar no altera ese enlace hasta publicar otra versión.

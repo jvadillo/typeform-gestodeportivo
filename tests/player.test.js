@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {Journey, resolveStyle, titleSizes} from '../src/flow.js';
+import {Journey, resolveStyle, titleSizes, textSizes, validateAnswer} from '../src/flow.js';
 
 // Controller tests isolate the DOM; the real journey and timer callbacks run unchanged.
 globalThis.document = {querySelector: () => null};
@@ -114,4 +114,21 @@ test('welcome has no eyebrow and every screen shares the configurable footer',()
   for (const [screen, options] of [[custom.welcome,{welcome:true}],[custom.questions[1],{index:1}],[custom.results[0],{result:true}]])
     assert.match(screenMarkup(custom, screen, options), /participant-brand">Club &lt;Gesto&gt;</);
   assert.equal(brand({...doc, footer:''}), '');
+});
+
+test('a statement screen shows its button, needs no answer and is left out of the answers',()=>{
+  const statement = {id:'info', type:'statement', title:'Antes de seguir', description:'Un texto', button:'Vamos', required:true, next:'next', style:{textSize:'huge'}};
+  const d = {...doc, questions:[statement, doc.questions[1]]};
+  const markup = screenMarkup(d, statement, {index:0});
+  assert.match(markup, /data-next[^>]*>Vamos/);
+  assert.equal(/screen-eyebrow|participant-answer|choices/.test(markup), false);
+  assert.match(styleVars(d, statement), /--text-scale:1.375/);
+  assert.equal(validateAnswer(statement, undefined), '');
+  const journey = new Journey(d); journey.start();
+  assert.equal(journey.next(), true);
+  assert.equal(journey.current.id, 'branch');
+  journey.set('ok');
+  assert.deepEqual(journey.activeAnswers(), {branch:'ok'});
+  assert.equal(resolveStyle(doc).textSize, 'medium');
+  assert.equal(Object.keys(textSizes).length, 5);
 });

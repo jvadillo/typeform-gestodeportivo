@@ -20,6 +20,7 @@ from openpyxl import load_workbook
 from PIL import Image
 from server.app import app
 from server.engine import validate_document, evaluate, FormError
+from server.export import make_workbook
 from server.seed import example_document, blank_document
 from server.storage import connect, dumps
 from server.google import process_jobs, sync_job, worker_lock, GoogleError
@@ -83,6 +84,28 @@ class EngineTests(unittest.TestCase):
         q['options'][0]['points'] = -7
         q['options'][0]['next'] = 'end'
         self.assertEqual(evaluate(self.doc, {'interes':'fuerza'})['total'], -7)
+
+    def test_statement_screen_has_no_answer_points_or_column(self):
+        # A text screen between the first choice and the rest of the route, also used as a jump target.
+        self.doc['questions'].insert(1, {'id': 'aviso', 'type': 'statement', 'title': 'Antes de seguir', 'description': 'Texto', 'button': 'Vamos', 'next': 'next', 'style': {'textSize': 'large'}})
+        self.doc['questions'][0]['options'][0]['next'] = 'aviso'
+        self.assertEqual(validate_document(self.doc), [])
+        result = evaluate(self.doc, {'interes': 'fuerza', 'entrenamiento': 'regular'})
+        self.assertEqual(result['total'], 6)
+        self.assertNotIn('aviso', [a['question_id'] for a in result['answers']])
+        with self.assertRaises(FormError):
+            evaluate(self.doc, {'interes': 'fuerza', 'aviso': 'x', 'entrenamiento': 'regular'})
+        submission = {'id': 's1', 'version': 1, 'completed': '2026-10-23T10:00:00+00:00', 'total': 6, 'result_title': 'R', 'answers': json.dumps(result['answers'])}
+        headers = [c.value for c in load_workbook(io.BytesIO(make_workbook([submission], [self.doc]))).active[1]]
+        self.assertFalse(any('[aviso]' in h for h in headers))
+        self.doc['questions'][1]['button'] = 'x' * 101
+        self.assertTrue(any('botón' in e for e in validate_document(self.doc)))
+
+    def test_text_size_is_validated(self):
+        self.doc['style']['textSize'] = 'huge'
+        self.assertEqual(validate_document(self.doc), [])
+        self.doc['questions'][0]['style']['textSize'] = '200%'
+        self.assertTrue(any('texto' in e for e in validate_document(self.doc)))
 
 
 class APITests(unittest.TestCase):

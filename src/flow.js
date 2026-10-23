@@ -1,12 +1,16 @@
 export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
 export const titleSizes = { small: ['Pequeño', .75], medium: ['Mediano', .875], large: ['Grande', 1], xlarge: ['Muy grande', 1.125], huge: ['Extra grande', 1.25] };
+export const textSizes = { small: ['Pequeño', .875], medium: ['Mediano', 1], large: ['Grande', 1.125], xlarge: ['Muy grande', 1.25], huge: ['Extra grande', 1.375] };
 export function resolveStyle(doc, screen = {}) {
   const style = {...baseStyle, ...doc.style, ...screen.style};
   // Older forms keep their original colors until these overrides are chosen.
-  return {...style, titleText: style.titleText ?? style.text, optionText: style.optionText ?? style.text, titleSize: style.titleSize ?? 'large'};
+  return {...style, titleText: style.titleText ?? style.text, optionText: style.optionText ?? style.text, titleSize: style.titleSize ?? 'large', textSize: style.textSize ?? 'medium'};
 }
-export const types = { choice: 'Selección única', short: 'Texto corto', long: 'Texto largo', number: 'Número', email: 'Correo electrónico' };
+export const types = { choice: 'Selección única', short: 'Texto corto', long: 'Texto largo', number: 'Número', email: 'Correo electrónico', statement: 'Pantalla de texto' };
+// A statement only shows a title, text and a button: it takes no answer and has no points.
+export const isStatement = screen => screen?.type === 'statement';
 export function validateAnswer(question, value) {
+  if (isStatement(question)) return '';
   if (value === undefined || value === null || value === '' || (typeof value === 'string' && !value.trim())) return question.required ? 'Responde a esta pregunta antes de continuar.' : '';
   if (question.type === 'choice' && !question.options.some(o => o.id === value)) return 'Selecciona una opción.';
   if (question.type === 'number' && (typeof value !== 'number' || !Number.isFinite(value) || Math.abs(value) > 1e12)) return 'Introduce un número válido entre −10¹² y 10¹².';

@@ -5,12 +5,15 @@ from datetime import datetime, timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
+from .engine import is_statement
+
 
 def make_workbook(submissions, documents):
     columns = {}
     for doc in documents:
         for q in doc['questions']:
-            columns.setdefault(q['id'], q['title'])
+            if not is_statement(q):
+                columns.setdefault(q['id'], q['title'])
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = 'Respuestas'

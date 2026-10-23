@@ -2,7 +2,13 @@
 import math
 import re
 
-TYPES = {'choice', 'short', 'long', 'number', 'email'}
+TYPES = {'choice', 'short', 'long', 'number', 'email', 'statement'}
+SIZES = ['small', 'medium', 'large', 'xlarge', 'huge']
+
+
+def is_statement(q):
+    """A text screen: title, text and a button, without an answer or points."""
+    return q.get('type') == 'statement'
 IDENTIFIER = re.compile(r'^[A-Za-z0-9_-]{1,80}$')
 
 
@@ -28,8 +34,10 @@ def style_errors(style):
         errors.append('La imagen debe subirse desde el editor.')
     if style.get('font', 'sans') not in ['sans', 'serif', 'mono']:
         errors.append('Tipografía inválida.')
-    if style.get('titleSize', 'large') not in ['small', 'medium', 'large', 'xlarge', 'huge']:
+    if style.get('titleSize', 'large') not in SIZES:
         errors.append('Tamaño del título inválido. Elige uno de los cinco tamaños disponibles.')
+    if style.get('textSize', 'medium') not in SIZES:
+        errors.append('Tamaño del texto inválido. Elige uno de los cinco tamaños disponibles.')
     return errors
 
 
@@ -65,6 +73,8 @@ def validate_document(doc):
             errors.append(f'Tipo de pregunta inválido: {q.get("title")}.')
         if not isinstance(q.get('required', False), bool):
             errors.append('La obligatoriedad debe ser verdadera o falsa.')
+        if is_statement(q) and (not isinstance(q.get('button', ''), str) or len(q.get('button', '')) > 100):
+            errors.append('El texto del botón debe tener como máximo 100 caracteres.')
         targets = [q.get('next', 'next')]
         if q.get('type') == 'choice':
             options = q.get('options', [])
@@ -172,11 +182,16 @@ def evaluate(doc, answers):
         if q['id'] in seen:
             raise FormError('El recorrido contiene un bucle.')
         seen.add(q['id'])
-        value = answer_value(q, answers.get(q['id']))
-        opt = next((o for o in q.get('options', []) if q['type'] == 'choice' and o['id'] == value), None)
-        points = opt.get('points', 0) if opt else 0
-        total += points
-        active.append({'question_id': q['id'], 'title': q['title'], 'type': q['type'], 'value': value, 'label': opt['label'] if opt else value, 'points': points})
+        if is_statement(q):
+            if answers.get(q['id']) is not None:
+                raise FormError('Una pantalla de texto no admite respuesta.')
+            opt = None
+        else:
+            value = answer_value(q, answers.get(q['id']))
+            opt = next((o for o in q.get('options', []) if q['type'] == 'choice' and o['id'] == value), None)
+            points = opt.get('points', 0) if opt else 0
+            total += points
+            active.append({'question_id': q['id'], 'title': q['title'], 'type': q['type'], 'value': value, 'label': opt['label'] if opt else value, 'points': points})
         target = (opt.get('next') if opt else None) or q.get('next', 'next')
         if target == 'end':
             break

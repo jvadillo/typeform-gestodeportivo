@@ -43,6 +43,7 @@ Todas estas prioridades son obligatorias para la entrega inicial. Google Sheets 
 | Texto largo | Respuesta de varias líneas. |
 | Número | Validación de valor numérico. |
 | Correo electrónico | Validación de formato de correo. |
+| Pantalla de texto | Sin respuesta: título, texto y un botón configurable para continuar. Participa en el recorrido y en los saltos, pero no suma puntos ni genera columna en Excel o Google Sheets. |
 
 Cada pregunta puede ser obligatoria u opcional. Los saltos por respuesta y la asignación de puntos se limitan a selección única en esta versión. No incluir selección múltiple.
 

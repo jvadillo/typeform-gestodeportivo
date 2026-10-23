@@ -7,6 +7,7 @@ from urllib.parse import quote
 from uuid import uuid4
 import httpx
 from cryptography.fernet import Fernet
+from .engine import is_statement
 from .storage import DATA, connect, dumps, put_setting, setting, utcnow
 
 BASE_COLUMNS = [('_id', 'Identificador del envío'), ('_version', 'Versión'), ('_date', 'Fecha y hora (UTC)'), ('_score', 'Puntuación'), ('_result', 'Resultado')]
@@ -138,7 +139,7 @@ def sync_job(client, submission_id):
     for q in doc['questions']:
         # Form ID namespaces IDs when several forms share a destination.
         qkey = sub['form_id'] + ':' + q['id']
-        if qkey not in known:
+        if qkey not in known and not is_statement(q):
             columns.append([qkey, q['title'] + ' [' + qkey + ']'])
             known.add(qkey)
     first = client.values(spreadsheet, sheet_range(title, '1:1'))
