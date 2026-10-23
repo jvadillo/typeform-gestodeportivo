@@ -29,3 +29,11 @@ dialog{border:1px solid #e3e8dc;border-radius:14px;box-shadow:0 30px 100px #193d
 @keyframes choice-leave{to{opacity:0;transform:translateY(-10px)}}
 @media(max-width:900px){.screen-row{flex-shrink:0;width:200px;margin:0}.screen-row .screen-item{width:0}.screen-reorder .btn.icon-btn{min-width:32px;min-height:30px}}
 @media(prefers-reduced-motion:reduce){.participant .choice-feedback .choice.selected,.participant.is-leaving .screen-content{animation:none!important;transform:none!important;opacity:1!important}}
+.image-sources{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.image-sources .btn.upload-control{min-height:0;background:transparent;color:#6c8457;font-size:11px}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;padding:20px 25px 25px}
+.gallery-item{padding:0;border:2px solid transparent;border-radius:10px;overflow:hidden;background:#eef2ea;aspect-ratio:4/3}
+.gallery-item img{width:100%;height:100%;object-fit:cover;display:block}
+.gallery-item:hover{border-color:#cbd7be}
+.gallery-item.selected{border-color:var(--green)}
+.gallery-empty{padding-bottom:25px}

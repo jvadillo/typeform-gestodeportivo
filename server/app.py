@@ -262,6 +262,14 @@ def publish_form(fid: str):
     return {'version': version, 'url': APP_URL + '/f/' + fid}
 
 
+@app.get('/api/uploads', dependencies=[Depends(admin)])
+def list_images():
+    # The gallery reuses earlier uploads; newest first.
+    files = [f for f in (DATA / 'uploads').iterdir() if re.fullmatch(r'[a-f0-9-]+\.webp', f.name)]
+    files.sort(key=lambda f: f.stat().st_mtime, reverse=True)
+    return [{'url': '/uploads/' + f.name, 'uploaded': datetime.fromtimestamp(f.stat().st_mtime, timezone.utc).isoformat()} for f in files]
+
+
 @app.post('/api/uploads', dependencies=[Depends(admin)])
 async def upload_image(file: UploadFile = File(...)):
     data = await file.read(8 * 1024 * 1024 + 1)

@@ -4,6 +4,7 @@ import json
 import os
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -190,6 +191,16 @@ class APITests(unittest.TestCase):
         self.assertEqual(response.status_code,200)
         url = response.json()['url']
         self.assertEqual(TestClient(app).get(url).status_code,200)
+
+    def test_gallery_lists_uploads_newest_first_and_is_private(self):
+        urls = []
+        for color in ['red', 'blue']:
+            stream = io.BytesIO(); Image.new('RGB',(10,10),color).save(stream,'PNG')
+            urls.append(self.client.post('/api/uploads',files={'file':('x.png',stream.getvalue(),'image/png')}).json()['url'])
+            time.sleep(0.02)
+        gallery = [item['url'] for item in self.client.get('/api/uploads').json()]
+        self.assertEqual(gallery[:2], urls[::-1])
+        self.assertIn(TestClient(app).get('/api/uploads').status_code, (401, 403))
 
     def test_duplicate_is_draft_only_and_delete_cascades(self):
         self.client.post(f'/api/public/{self.fid}/submit',json=self.submission())
