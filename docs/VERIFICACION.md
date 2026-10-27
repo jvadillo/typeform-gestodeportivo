@@ -1,5 +1,13 @@
 # Verificación de la entrega
 
+## Reglas de navegación por puntuación · 27 de octubre de 2026
+
+- 36 pruebas Python y 33 pruebas Node satisfactorias. Los seis comparadores comparten casos de frontera entre ambos motores.
+- Verificados: suma acumulada con la respuesta actual, prioridad de la primera regla, destinos por respuesta y predeterminados, todos los tipos de contenido, preguntas omitidas, cero y negativos, suma decimal exacta, vuelta atrás sin contar puntos futuros y cambio de rama.
+- El editor permite añadir, editar, ordenar y eliminar reglas de navegación separadas de los puntos por respuesta. Se comprueban los controles y el avance automático del participante con el DOM aislado.
+- Pruebas API de guardado, publicación, recálculo autoritativo, rechazo de respuestas de ramas abandonadas y versiones publicadas anteriores. Valores inválidos, destinos eliminados y ciclos bloquean la publicación.
+- Revisión visual intentada con el servidor aislado: la herramienta no pudo obtener el estado de las ventanas de Chrome (ventana minimizada / accesibilidad no disponible). No se ha completado una revisión visual en esta sesión.
+
 ## Ejecutado
 
 - Servidor real iniciado en `127.0.0.1:8000` con Python 3.11 y bibliotecas disponibles en el entorno.

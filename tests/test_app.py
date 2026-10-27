@@ -197,6 +197,25 @@ class APITests(unittest.TestCase):
         self.assertEqual(self.client.post(f'/api/forms/{self.fid}/publish').status_code, 422)
         self.assertEqual(self.client.put(f'/api/forms/{self.fid}', json={'draft':self.doc,'revision':1}).status_code, 409)
 
+    def test_score_rules_persist_publish_and_recalculate_on_submission(self):
+        old = self.publish()
+        self.doc['questions'][0]['scoreRules'] = [{'operator': 'gt', 'value': 2, 'next': 'nombre'}]
+        self.assertEqual(self.save(self.doc)['errors'], [])
+        saved = self.client.get('/api/forms/' + self.fid).json()['draft']
+        self.assertEqual(saved['questions'][0]['scoreRules'], self.doc['questions'][0]['scoreRules'])
+        public = self.publish()
+        self.assertEqual(public['document']['questions'][0]['scoreRules'], saved['questions'][0]['scoreRules'])
+        payload = self.submission(public, {'interes': 'fuerza', 'nombre': 'Ana'})
+        payload['total'] = 1000
+        response = self.client.post(f'/api/public/{self.fid}/submit', json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['total'], 3)
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=self.submission(public)).status_code, 422)
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=self.submission(old)).json()['total'], 6)
+        self.doc['questions'][0]['scoreRules'][0]['value'] = None
+        self.assertTrue(self.save(self.doc)['errors'])
+        self.assertEqual(self.client.post(f'/api/forms/{self.fid}/publish').status_code, 422)
+
     def test_xlsx_historical_stable_columns_zero_and_formula_strings(self):
         doc = blank_document('Excel')
         doc['questions'] = [

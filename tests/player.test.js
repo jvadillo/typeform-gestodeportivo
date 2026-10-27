@@ -109,6 +109,41 @@ test('sidebar arrows move the named question without changing IDs or destination
   assert.deepEqual(scroll,{scrollTop:71,scrollLeft:42});
 });
 
+test('editor creates, edits, reorders and removes navigation rules independently of points',async t=>{
+  const editor=Object.create(Editor.prototype);
+  Object.assign(editor,{doc:structuredClone(doc),selected:'route',markDirty(){this.dirty=true;},render(){}});
+  t.mock.method(document,'querySelector',()=>({focus(){}}));
+  const click=async(action,value)=>editor.onClick({target:{closest:()=>({dataset:{action,value},closest:()=>null})}});
+  await click('add-score-rule');await click('add-score-rule');
+  assert.deepEqual(editor.screen.scoreRules,[{operator:'gt',value:0,next:'next'},{operator:'gt',value:0,next:'next'}]);
+  editor.onInput({target:{value:'5.5',dataset:{index:'0',scoreRule:'value'},matches:s=>s==='input[data-score-rule]'}});
+  for(const [key,value] of [['operator','gte'],['next','branch']])
+    await editor.onChange({target:{value,dataset:{index:'0',scoreRule:key},matches:s=>s==='select[data-score-rule]'}});
+  await click('move-score-rule-down','0');
+  assert.deepEqual(editor.screen.scoreRules[1],{operator:'gte',value:5.5,next:'branch'});
+  await click('move-score-rule-up','1');
+  await click('remove-score-rule','1');
+  assert.equal(editor.screen.scoreRules.length,1);
+  assert.deepEqual(editor.screen.options,doc.questions[0].options);
+  const markup=editor.logicSettings();
+  assert.match(markup,/Reglas de navegación por puntuación/);
+  assert.match(markup,/Puntuación por respuesta/);
+  assert.match(markup,/Distinto de/);
+  editor.onInput({target:{value:'',dataset:{index:'0',scoreRule:'value'},matches:s=>s==='input[data-score-rule]'}});
+  assert.equal(editor.screen.scoreRules[0].value,null);
+  editor.screen.scoreRules[0].next='deleted';assert.match(editor.logicSettings(),/Destino eliminado/);
+  editor.screen.type='statement';assert.match(editor.logicSettings(),/Añadir regla de puntuación/);
+});
+
+test('automatic choice advance and preview completion apply score rules after awarding points',t=>{
+  const {player,tick}=fixture(t);
+  player.doc.questions[0].scoreRules=[{operator:'gte',value:2,next:'end'}];
+  player.selectChoice('a');tick(460);
+  assert.equal(player.finished.total,2);
+  assert.equal(player.finished.result.id,'result');
+  assert.deepEqual(player.journey.activeAnswers(),{route:'a'});
+});
+
 test('welcome has no eyebrow and every screen shares the configurable footer',()=>{
   const brand = d => screenMarkup(d, d.questions[0], {index:0}).match(/participant-brand">([^<]*)</)[1];
   assert.equal(screenMarkup(doc, doc.welcome, {welcome:true}).includes('screen-eyebrow'), false);

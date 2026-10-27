@@ -19,14 +19,40 @@ export function validateAnswer(question, value) {
   if (typeof value === 'string' && /[\x00-\x08\x0b\x0c\x0e-\x1f]/.test(value)) return 'La respuesta contiene caracteres de control no permitidos.';
   return '';
 }
-export function nextQuestion(doc, qid, value) {
+export const scoreOperators = {gt: 'Mayor que (>)', lt: 'Menor que (<)', eq: 'Igual que (=)', gte: 'Mayor o igual que (≥)', lte: 'Menor o igual que (≤)', neq: 'Distinto de (≠)'};
+export function matchesScoreRule(rule, total) {
+  if (!Number.isFinite(rule.value)) return false;
+  switch (rule.operator) {
+    case 'gt': return total > rule.value;
+    case 'lt': return total < rule.value;
+    case 'eq': return total === rule.value;
+    case 'gte': return total >= rule.value;
+    case 'lte': return total <= rule.value;
+    case 'neq': return total !== rule.value;
+    default: return false;
+  }
+}
+export function nextQuestion(doc, qid, value, total = 0) {
   const index = doc.questions.findIndex(q => q.id === qid), q = doc.questions[index];
   const option = q.type === 'choice' ? q.options.find(o => o.id === value) : null;
-  const target = option?.next || q.next || 'next';
+  const rule = (q.scoreRules || []).find(rule => matchesScoreRule(rule, total));
+  const target = rule?.next || option?.next || q.next || 'next';
   return target === 'end' ? null : target === 'next' ? doc.questions[index + 1]?.id || null : target;
 }
 export function score(doc, answers) {
-  return doc.questions.reduce((sum, q) => sum + (q.type === 'choice' ? q.options.find(o => o.id === answers[q.id])?.points || 0 : 0), 0);
+  // Sum the configured decimal values exactly before converting to a Number.
+  // Equality rules must treat 0.1 + 0.2 as 0.3, regardless of screen order.
+  let sum = 0n, scale = 0;
+  for (const q of doc.questions) {
+    const points = q.type === 'choice' ? q.options.find(o => o.id === answers[q.id])?.points || 0 : 0;
+    const [mantissa, exponent = '0'] = String(points).toLowerCase().split('e');
+    const decimals = (mantissa.split('.')[1] || '').length;
+    let units = BigInt(mantissa.replace('.', '')), pointScale = decimals - Number(exponent);
+    if (pointScale < 0) { units *= 10n ** BigInt(-pointScale); pointScale = 0; }
+    if (pointScale > scale) { sum *= 10n ** BigInt(pointScale - scale); scale = pointScale; }
+    sum += units * 10n ** BigInt(scale - pointScale);
+  }
+  return Number(`${sum}e-${scale}`);
 }
 export function resolveResult(doc, total) {
   return doc.results.length === 1 ? doc.results[0] : doc.results.find(r => !r.default && (r.min == null || total >= r.min) && (r.max == null || total < r.max)) || doc.results.find(r => r.default);
@@ -47,7 +73,8 @@ export class Journey {
   next() {
     const q = this.current, error = validateAnswer(q, this.answers[q.id]);
     if (error) throw new Error(error);
-    const next = nextQuestion(this.doc, q.id, this.answers[q.id]);
+    // Only the visited prefix counts, even when going forward with unchanged answers.
+    const next = nextQuestion(this.doc, q.id, this.answers[q.id], score(this.doc, this.activeAnswers()));
     if (next === null) return false;
     if (this.history.slice(0, this.cursor + 1).includes(next)) throw new Error('El recorrido contiene un bucle. Revisa los saltos.');
     if (!this.doc.questions.some(q => q.id === next)) throw new Error('El destino de esta pregunta ya no existe.');

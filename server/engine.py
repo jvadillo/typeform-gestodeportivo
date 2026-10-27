@@ -1,9 +1,11 @@
 """Authoritative form validation and route/score evaluation, independent of HTTP."""
 import math
 import re
+from decimal import Decimal, localcontext
 
 TYPES = {'choice', 'short', 'long', 'number', 'email', 'statement'}
 SCORE_FORMATS = {'points', 'of', 'slash'}
+SCORE_OPERATORS = {'gt', 'lt', 'eq', 'gte', 'lte', 'neq'}
 SIZES = ['xsmall', 'small', 'medium', 'large', 'xlarge', 'huge']
 
 
@@ -85,6 +87,19 @@ def validate_document(doc):
         if is_statement(q) and (not isinstance(q.get('button', ''), str) or len(q.get('button', '')) > 100):
             errors.append('El texto del botón debe tener como máximo 100 caracteres.')
         targets = [q.get('next', 'next')]
+        rules = q.get('scoreRules', [])
+        if not isinstance(rules, list) or len(rules) > 50:
+            errors.append('Las reglas de puntuación deben ser una lista de hasta 50 reglas por pantalla.')
+        else:
+            for rule in rules:
+                if not isinstance(rule, dict):
+                    errors.append('Regla de puntuación inválida.')
+                    continue
+                if not isinstance(rule.get('operator'), str) or rule['operator'] not in SCORE_OPERATORS:
+                    errors.append('El comparador de la regla de puntuación no es válido.')
+                if not finite(rule.get('value')):
+                    errors.append('El valor de la regla de puntuación debe ser un número finito entre −10¹² y 10¹².')
+                targets.append(rule.get('next'))
         if q.get('type') == 'choice':
             options = q.get('options', [])
             if not isinstance(options, list) or not 1 <= len(options) <= 50:
@@ -102,13 +117,14 @@ def validate_document(doc):
                     errors.append('Los puntos deben ser números finitos entre −10¹² y 10¹².')
                 targets.append(opt.get('next') or q.get('next', 'next'))
         for target in targets:
-            if target not in {'next', 'end'} | qids:
+            if not isinstance(target, str) or target not in {'next', 'end'} | qids:
                 errors.append(f'Destino eliminado o inválido en «{q.get("title")}».')
     if errors:
         return list(dict.fromkeys(errors))
     edges = {}
     for i, q in enumerate(questions):
         targets = [q.get('next', 'next')]
+        targets += [rule['next'] for rule in q.get('scoreRules', [])]
         if q['type'] == 'choice':
             targets += [o.get('next') or q.get('next', 'next') for o in q.get('options', [])]
         edges[q['id']] = {(questions[i+1]['id'] if i+1 < len(questions) else 'end') if t == 'next' else t for t in targets}
@@ -179,6 +195,21 @@ def answer_value(q, value):
     return value
 
 
+def matches_score_rule(rule, total):
+    value = rule['value']
+    return {
+        'gt': total > value, 'lt': total < value, 'eq': total == value,
+        'gte': total >= value, 'lte': total <= value, 'neq': total != value,
+    }.get(rule['operator'], False)
+
+
+def score_total(answers):
+    # Match the browser's decimal sum, including very small finite point values.
+    with localcontext() as context:
+        context.prec = 400
+        return float(sum((Decimal(str(answer['points'])) for answer in answers), Decimal(0)))
+
+
 def evaluate(doc, answers):
     if not isinstance(answers, dict):
         raise FormError('Respuestas inválidas.')
@@ -199,9 +230,13 @@ def evaluate(doc, answers):
             value = answer_value(q, answers.get(q['id']))
             opt = next((o for o in q.get('options', []) if q['type'] == 'choice' and o['id'] == value), None)
             points = opt.get('points', 0) if opt else 0
-            total += points
             active.append({'question_id': q['id'], 'title': q['title'], 'type': q['type'], 'value': value, 'label': opt['label'] if opt else value, 'points': points})
+            total = score_total(active)
         target = (opt.get('next') if opt else None) or q.get('next', 'next')
+        for rule in q.get('scoreRules', []):
+            if matches_score_rule(rule, total):
+                target = rule['next']
+                break
         if target == 'end':
             break
         index = index + 1 if target == 'next' else by_id[target]
