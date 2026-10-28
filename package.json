@@ -5,6 +5,6 @@
   "type": "module",
   "scripts": {
     "start": "python -m server",
-    "test": "node --test tests/flow.test.js tests/player.test.js"
+    "test": "node --test tests/flow.test.js tests/player.test.js tests/variables.test.js"
   }
 }

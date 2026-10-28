@@ -6,18 +6,24 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 
 from .engine import is_statement
+from .variables import stored_variables
 
 
 def make_workbook(submissions, documents):
-    columns = {}
+    columns, variables = {}, {}
     for doc in documents:
         for q in doc['questions']:
             if not is_statement(q):
                 columns.setdefault(q['id'], q['title'])
+        for variable in doc.get('variables', []):
+            variables[variable['id']] = variable['name']
     workbook = Workbook()
     sheet = workbook.active
     sheet.title = 'Respuestas'
     headers = ['Identificador del envío', 'Versión', 'Fecha y hora (UTC)', 'Puntuación', 'Resultado'] + [f'{title} [{qid}]' for qid, title in columns.items()]
+    headers += [f'{name} [variable:{vid}]' for vid, name in variables.items()]
+    if variables:
+        headers[3] = 'Valor del resultado'
     # XML cannot represent these controls even when Excel cells are typed as strings.
     headers = [re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', text) for text in headers]
     sheet.append(headers)
@@ -25,6 +31,8 @@ def make_workbook(submissions, documents):
         answers = {a['question_id']: a['label'] for a in json.loads(sub['answers'])}
         date = datetime.fromisoformat(sub['completed']).astimezone(timezone.utc).replace(tzinfo=None)
         values = [sub['id'], sub['version'], date, sub['total'], sub['result_title']] + [answers.get(qid) for qid in columns]
+        variable_values = {v['id']: v['value'] for v in stored_variables(sub)}
+        values += [variable_values.get(vid) for vid in variables]
         values = [re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', value) if isinstance(value, str) else value for value in values]
         sheet.append(values)
         for cell in sheet[sheet.max_row]:

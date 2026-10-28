@@ -1,6 +1,7 @@
 export const baseStyle = { background: '#e9f0e8', text: '#193d31', button: '#193d31', buttonText: '#ffffff', option: '#ffffff', optionOpacity: 1, overlay: '#000000', opacity: .25, image: '', x: 50, y: 50, font: 'sans' };
 export const titleSizes = { xsmall: ['Muy pequeño', .45], small: ['Pequeño', .575], medium: ['Mediano', .7], large: ['Grande', .8], xlarge: ['Muy grande', .875], huge: ['Extra grande', .925] };
 export const textSizes = { xsmall: ['Muy pequeño', .7], small: ['Pequeño', .8], medium: ['Mediano', .925], large: ['Grande', 1], xlarge: ['Muy grande', 1.1], huge: ['Extra grande', 1.2] };
+import {variablesAlong, resultValue, matchesVariableRule} from './variables.js';
 export function resolveStyle(doc, screen = {}) {
   const style = {...baseStyle, ...doc.style, ...screen.style};
   // Older forms keep their original colors until these overrides are chosen.
@@ -35,11 +36,12 @@ export function matchesScoreRule(rule, total) {
 export function nextQuestion(doc, qid, value, total = 0) {
   const index = doc.questions.findIndex(q => q.id === qid), q = doc.questions[index];
   const option = q.type === 'choice' ? q.options.find(o => o.id === value) : null;
-  const rule = (q.scoreRules || []).find(rule => matchesScoreRule(rule, total));
+  const rule = (q.scoreRules || []).find(rule => typeof total==='number'?matchesScoreRule(rule,total):matchesVariableRule(rule,total));
   const target = rule?.next || option?.next || q.next || 'next';
   return target === 'end' ? null : target === 'next' ? doc.questions[index + 1]?.id || null : target;
 }
-export function score(doc, answers) {
+export function score(doc, answers, path = doc.questions.map(q=>q.id)) {
+  if(doc.variables || doc.questions.some(q=>q.calculations || q.options?.some(o=>o.calculations)))return resultValue(doc,variablesAlong(doc,answers,path));
   // Sum the configured decimal values exactly before converting to a Number.
   // Equality rules must treat 0.1 + 0.2 as 0.3, regardless of screen order.
   let sum = 0n, scale = 0;
@@ -60,6 +62,8 @@ export function resolveResult(doc, total) {
 export class Journey {
   constructor(doc) { this.doc = doc; this.answers = {}; this.history = []; this.cursor = -1; }
   get current() { return this.doc.questions.find(q => q.id === this.history[this.cursor]); }
+  get variables() { return variablesAlong(this.doc,this.activeAnswers(),this.history.slice(0,this.cursor+1)); }
+  get total() { return resultValue(this.doc,this.variables); }
   start() { if (!this.history.length) this.history = [this.doc.questions[0].id]; this.cursor = 0; }
   set(value) {
     const q = this.current;
@@ -74,7 +78,7 @@ export class Journey {
     const q = this.current, error = validateAnswer(q, this.answers[q.id]);
     if (error) throw new Error(error);
     // Only the visited prefix counts, even when going forward with unchanged answers.
-    const next = nextQuestion(this.doc, q.id, this.answers[q.id], score(this.doc, this.activeAnswers()));
+    const next = nextQuestion(this.doc, q.id, this.answers[q.id], this.variables);
     if (next === null) return false;
     if (this.history.slice(0, this.cursor + 1).includes(next)) throw new Error('El recorrido contiene un bucle. Revisa los saltos.');
     if (!this.doc.questions.some(q => q.id === next)) throw new Error('El destino de esta pregunta ya no existe.');

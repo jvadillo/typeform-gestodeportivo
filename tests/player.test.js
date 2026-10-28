@@ -115,24 +115,24 @@ test('editor creates, edits, reorders and removes navigation rules independently
   t.mock.method(document,'querySelector',()=>({focus(){}}));
   const click=async(action,value)=>editor.onClick({target:{closest:()=>({dataset:{action,value},closest:()=>null})}});
   await click('add-score-rule');await click('add-score-rule');
-  assert.deepEqual(editor.screen.scoreRules,[{operator:'gt',value:0,next:'next'},{operator:'gt',value:0,next:'next'}]);
-  editor.onInput({target:{value:'5.5',dataset:{index:'0',scoreRule:'value'},matches:s=>s==='input[data-score-rule]'}});
-  for(const [key,value] of [['operator','gte'],['next','branch']])
-    await editor.onChange({target:{value,dataset:{index:'0',scoreRule:key},matches:s=>s==='select[data-score-rule]'}});
+  assert.equal(editor.screen.scoreRules.length,2);
+  editor.onInput({target:{value:'5.5',dataset:{rule:'0',index:'0',condition:'value'},matches:s=>s==='input[data-condition]'}});
+  await editor.onChange({target:{value:'gte',dataset:{rule:'0',index:'0',condition:'operator'},matches:s=>s==='select[data-condition]'}});
+  await editor.onChange({target:{value:'branch',dataset:{index:'0'},matches:s=>s==='[data-rule-destination]'}});
   await click('move-score-rule-down','0');
-  assert.deepEqual(editor.screen.scoreRules[1],{operator:'gte',value:5.5,next:'branch'});
+  assert.deepEqual(editor.screen.scoreRules[1],{match:'all',conditions:[{variable:'score',operator:'gte',value:5.5}],next:'branch'});
   await click('move-score-rule-up','1');
   await click('remove-score-rule','1');
   assert.equal(editor.screen.scoreRules.length,1);
   assert.deepEqual(editor.screen.options,doc.questions[0].options);
   const markup=editor.logicSettings();
-  assert.match(markup,/Reglas de navegación por puntuación/);
-  assert.match(markup,/Puntuación por respuesta/);
+  assert.match(markup,/Reglas de navegación/);
+  assert.match(markup,/Cálculos por respuesta/);
   assert.match(markup,/Distinto de/);
-  editor.onInput({target:{value:'',dataset:{index:'0',scoreRule:'value'},matches:s=>s==='input[data-score-rule]'}});
-  assert.equal(editor.screen.scoreRules[0].value,null);
+  editor.onInput({target:{value:'',dataset:{rule:'0',index:'0',condition:'value'},matches:s=>s==='input[data-condition]'}});
+  assert.equal(editor.screen.scoreRules[0].conditions[0].value,null);
   editor.screen.scoreRules[0].next='deleted';assert.match(editor.logicSettings(),/Destino eliminado/);
-  editor.screen.type='statement';assert.match(editor.logicSettings(),/Añadir regla de puntuación/);
+  editor.screen.type='statement';assert.match(editor.logicSettings(),/Añadir regla/);
 });
 
 test('automatic choice advance and preview completion apply score rules after awarding points',t=>{
@@ -142,6 +142,55 @@ test('automatic choice advance and preview completion apply score rules after aw
   assert.equal(player.finished.total,2);
   assert.equal(player.finished.result.id,'result');
   assert.deepEqual(player.journey.activeAnswers(),{route:'a'});
+});
+
+test('variable editor preserves legacy points, manages variables and orders calculations',()=>{
+  const editor=Object.create(Editor.prototype);
+  Object.assign(editor,{doc:structuredClone(doc),selected:'route',markDirty(){this.dirty=true;},render(){}});
+  editor.onVariableAction('add-variable',null,{dataset:{}});
+  assert.equal(editor.doc.variables.length,2);
+  const id=editor.doc.variables[1].id;
+  editor.onVariableInput({value:'Resistencia',dataset:{variable:'name',id},matches:s=>s==='[data-variable]'});
+  editor.onVariableInput({value:'10',dataset:{variable:'initial',id},matches:s=>s==='[data-variable]'});
+  assert.deepEqual(editor.doc.variables[1],{id,name:'Resistencia',initial:10});
+  assert.throws(()=>editor.onVariableAction('remove-variable','score',{dataset:{}}),/se usa/);
+  editor.onVariableAction('add-calculation',null,{dataset:{owner:'a'}});
+  assert.equal(editor.screen.options[0].points,undefined);
+  assert.deepEqual(editor.screen.options[0].calculations[0],{variable:'score',operation:'add',value:2});
+  editor.onVariableChange({value:id,dataset:{owner:'a',index:'1',calculation:'variable'},matches:s=>s==='select[data-calculation]'});
+  editor.onVariableChange({value:'multiply',dataset:{owner:'a',index:'1',calculation:'operation'},matches:s=>s==='select[data-calculation]'});
+  editor.onVariableInput({value:'3',dataset:{owner:'a',index:'1'},matches:s=>s==='input[data-calculation]'});
+  editor.onVariableAction('move-calculation-up','1',{dataset:{owner:'a'}});
+  assert.deepEqual(editor.screen.options[0].calculations[0],{variable:id,operation:'multiply',value:3});
+  assert.throws(()=>editor.onVariableAction('remove-variable',id,{dataset:{}}),/se usa/);
+  editor.onVariableAction('remove-calculation','0',{dataset:{owner:'a'}});
+  editor.onVariableAction('add-score-rule',null,{dataset:{}});
+  editor.onVariableAction('add-condition','0',{dataset:{}});
+  editor.onVariableChange({value:id,dataset:{rule:'0',index:'1',condition:'variable'},matches:s=>s==='select[data-condition]'});
+  editor.onVariableChange({value:'any',dataset:{index:'0'},matches:s=>s==='[data-rule-match]'});
+  assert.throws(()=>editor.onVariableAction('remove-variable',id,{dataset:{}}),/se usa/);
+  editor.onVariableAction('remove-condition','1',{dataset:{rule:'0'}});
+  editor.onVariableAction('remove-variable',id,{dataset:{}});
+  assert.equal(editor.doc.variables.length,1);
+  assert.match(editor.variablesMarkup(),/Variables del formulario/);
+});
+
+test('custom result variable is shown by name and escaped',()=>{
+  const d={...doc,variables:[{id:'fitness',name:'Fuerza <total>',initial:0}],resultVariable:'fitness'};
+  const markup=screenMarkup(d,d.results[0],{result:true,total:5});
+  assert.match(markup,/Fuerza &lt;total&gt;:/);
+  assert.match(markup,/<strong>5<\/strong>/);
+});
+
+test('incompatible content types cannot hide active calculations, and variable errors are visible',()=>{
+  const editor=Object.create(Editor.prototype);
+  Object.assign(editor,{doc:structuredClone(doc),selected:'branch',form:{errors:['Variable inválida <x>']}});
+  editor.screen.type='number';editor.screen.calculations=[{variable:'score',operation:'add',source:'answer'}];
+  for(const type of ['statement','choice','short','email'])assert.throws(()=>editor.assertContentType(type),/cálculos/);
+  assert.doesNotThrow(()=>editor.assertContentType('number'));
+  editor.screen.calculations[0]={variable:'score',operation:'add',value:3};
+  assert.doesNotThrow(()=>editor.assertContentType('short'));
+  assert.match(editor.variablesMarkup(),/Variable inválida &lt;x&gt;/);
 });
 
 test('welcome has no eyebrow and every screen shares the configurable footer',()=>{

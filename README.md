@@ -47,18 +47,23 @@ El ejemplo tiene dos ramas (`Sentirme más fuerte` / `Encontrar mi equilibrio`),
 
 - Tipos: selección única, texto corto, texto largo, número y correo. No hay selección múltiple.
 - Cada pregunta tiene destino predeterminado. Una opción puede heredarlo, ir a la siguiente pregunta, saltar a un ID concreto o finalizar.
-- En **Lógica → Reglas de navegación por puntuación**, cada contenido (también una pantalla de texto) puede comparar la **puntuación total acumulada** con un valor: mayor que, menor que, igual que, mayor o igual que, menor o igual que y distinto de. Elige el destino: siguiente contenido, una pantalla concreta o finalizar. Por ejemplo: «Si la puntuación total es mayor que 5, ir a 10. …».
-- Las reglas se evalúan **después de sumar los puntos de la respuesta actual**, de arriba abajo; gana la primera que se cumpla. Las flechas cambian su prioridad. Si ninguna coincide, se usa el salto de la respuesta seleccionada y, en su ausencia, el destino predeterminado. La sección **Puntuación por respuesta** solo asigna puntos; las reglas de navegación no modifican el total. Se admiten hasta 50 reglas por contenido, con umbrales decimales, negativos o cero. Un valor vacío debe completarse antes de probar o publicar.
+- En la sección **Variables**, crea hasta 20 variables con nombre único y valor inicial (cero por defecto). Puedes renombrarlas sin romper referencias. La antigua **Puntuación** sigue disponible; sus puntos y reglas se interpretan automáticamente como operaciones y condiciones sobre esa variable.
+- En **Lógica → Cálculos por respuesta**, cada opción admite varios cálculos sobre distintas variables: **sumar, restar, multiplicar y dividir** por un número fijo. En preguntas numéricas también puedes usar **la respuesta numérica** como valor de la operación. Otros tipos de pregunta pueden aplicar operaciones con números fijos al recibir respuesta; las pantallas de texto no calculan nada y las preguntas omitidas tampoco.
+- Los cálculos se ejecutan **de arriba abajo y en el orden del recorrido visitado**, antes de evaluar los saltos. El orden importa: sumar 2 y multiplicar por 3 no equivale a multiplicar por 3 y sumar 2. Las flechas cambian su orden. Cada respuesta admite hasta 50 cálculos.
+- En **Lógica → Reglas de navegación**, elige una variable, un comparador (**>**, **<**, **=**, **≥**, **≤**, **≠**) y un valor. Puedes combinar hasta 20 condiciones con **Todas (Y)** o **Cualquiera (O)**. Por ejemplo: «Fuerza mayor que 5 Y Resistencia mayor o igual que 3 → pantalla 10». Se admiten hasta 50 reglas por contenido, también en pantallas de texto.
+- Las reglas se evalúan de arriba abajo y gana la primera que se cumpla. Si ninguna coincide, se usa el salto por respuesta y después el destino predeterminado. Las reglas solo deciden el destino; los cálculos solo cambian las variables.
+- En **Variables → Variable de los resultados** eliges qué variable usan los intervalos finales, el valor mostrado y el gráfico circular. Es común a todos los resultados. Las otras variables también se guardan en cada envío.
+- No se puede eliminar una variable mientras se use en cálculos, condiciones o resultados. Se bloquea publicar con referencias inexistentes, nombres vacíos o repetidos, valores incompletos y divisiones por cero. Si se usa una respuesta numérica como divisor, introducir cero muestra un error antes de avanzar. Un cambio de tipo de pregunta incompatible con sus cálculos pide corregirlos primero en Lógica.
 - Las flechas de cada pregunta en el lateral permiten subirla o bajarla directamente. Reordenar mantiene los ID; **Siguiente pregunta** siempre sigue el orden actual. Si ese cambio introduce un ciclo, la publicación se bloquea. Eliminar una pantalla deja sus referencias señaladas para corregirlas explícitamente.
-- Los puntos admiten decimales, valores negativos y cero. Se recalculan a partir de las respuestas activas. Al modificar una respuesta anterior se eliminan sus respuestas posteriores, incluso si ambas ramas llegan luego a una pregunta común.
-- Al volver atrás, las reglas solo cuentan los puntos hasta la pantalla actual. La suma decimal evita que `0,1 + 0,2` incumpla una regla «igual a 0,3». Los destinos de las reglas también se validan para impedir referencias eliminadas y bucles.
+- Las variables admiten decimales, valores negativos y cero. Se recalculan desde sus valores iniciales a partir de las respuestas activas. Al modificar una respuesta anterior se eliminan sus respuestas posteriores, incluso si ambas ramas llegan luego a una pregunta común.
+- Al volver atrás, las reglas solo cuentan los cálculos hasta la pantalla actual. La suma decimal evita que `0,1 + 0,2` incumpla una regla «igual a 0,3». Los destinos de las reglas también se validan para impedir referencias eliminadas y bucles.
 - Los resultados usan intervalos **[desde incluido, hasta excluido)**. Un límite vacío significa sin tope. Deben cubrir toda la escala sin huecos ni solapamientos, o tener un resultado predeterminado. Con un solo resultado, este se aplica siempre.
 - Un resultado con **Mostrar puntuación total** permite elegir el formato del texto («X puntos», «X de Y puntos» o «X/Y puntos») y, aparte, un gráfico circular que se rellena según el porcentaje obtenido, con la puntuación dentro. La **puntuación máxima** (Y) es común a todo el formulario y obligatoria para «X de Y», «X/Y» y el gráfico. Las puntuaciones negativas dejan el gráfico vacío y las superiores al máximo lo llenan.
 - Todas las pantallas heredan el estilo general; sus ajustes propios lo sobrescriben. **Restaurar estilo heredado** elimina esas sobrescrituras. La imagen se ajusta con `cover`, punto focal horizontal/vertical y una capa de color y opacidad.
 - En **Diseño** puedes separar los colores de título, texto general y texto de opciones, ajustar la opacidad del fondo de opciones para dejar ver el fondo a través de ellas, y elegir seis tamaños de título y de texto: muy pequeño, pequeño, mediano, grande, muy grande y extra grande (por defecto, grande para el título y mediano para el texto). Son tamaños adaptables a móvil; se aplican también a la vista previa. **Tamaño del texto** solo aparece cuando la pantalla (o, para todo el formulario, alguna pantalla) tiene descripción o texto.
 - Imágenes: JPEG, PNG o WebP, hasta 8 MB y 25 megapíxeles. Se verifica el contenido, se elimina EXIF y se convierte a WebP de hasta 2560 px con calidad 80, que reduce el peso sin diferencias visibles. Los archivos se conservan para no romper versiones antiguas.
 - Al pulsar una opción o su letra A–Z, se confirma con una animación breve y se avanza automáticamente según el salto configurado (o se finaliza). Las flechas del teclado permiten explorar sin avanzar; Enter o Espacio confirman la opción enfocada. En texto largo Enter crea líneas y Ctrl+Enter continúa. Volver atrás sigue el recorrido visitado y cancela cualquier avance pendiente. Se respeta movimiento reducido.
-- Máximos prácticos: 100 preguntas, 50 opciones por pregunta, 20 resultados; texto largo 10.000 caracteres, otros textos 1.000; valores numéricos entre −10¹² y 10¹².
+- Máximos prácticos: 100 preguntas, 50 opciones por pregunta, 20 resultados; texto largo 10.000 caracteres, otros textos 1.000; valores de entrada entre −10¹² y 10¹². Los valores calculados no pueden superar ±10¹⁴; también se limita la precisión interna de cálculos excepcionalmente largos.
 
 ## Conectar Google Sheets
 
@@ -93,13 +98,17 @@ Se solicita `https://www.googleapis.com/auth/spreadsheets`, que permite acceso a
 
 ## Excel y fechas
 
+Cada envío conserva el nombre y el valor final de todas sus variables, incluso si después se renombran o eliminan. El detalle de **Respuestas** muestra esa instantánea histórica. Excel añade columnas estables por ID de variable; las variables que aún no existían quedan vacías, y el cero se mantiene como número. La columna **Valor del resultado** contiene la variable elegida para el cierre. Las exportaciones antiguas conservan su estructura original.
+
+Google Sheets añade las columnas de variables sin mover las existentes, con un ID que incluye el formulario para evitar colisiones. Los reintentos conservan las filas y valores originales; **Sincronizar todo de nuevo** actualiza los nombres de las cabeceras sin recalcular las respuestas históricas. La columna base «Puntuación» se conserva por compatibilidad y contiene el valor elegido para el resultado.
+
 Se genera un `.xlsx` real en el servidor con openpyxl: cabecera inmovilizada, filtros, identificadores, versión, fecha Excel, total, resultado y una columna estable por pregunta. Incluye envíos sin sincronizar y columnas históricas. Un cero se exporta como número; una ausencia queda vacía. El texto se marca explícitamente como texto, incluso si empieza por `=`, `+`, `-` o `@`.
 
 Persistencia, filtros y fechas de exportación usan **UTC**. La lista y detalle muestran **Europe/Madrid**, indicada en pantalla. El día final del filtro es inclusivo en UTC.
 
 ## Datos, seguridad y recuperación
 
-- `data/gesto.sqlite3`: base SQLite con WAL, claves foráneas y esquema inicial versionado en `server/schema.sql` (`user_version=1`). No hay un servidor de bases de datos aparte.
+- `data/gesto.sqlite3`: base SQLite con WAL, claves foráneas y esquema inicial versionado en `server/schema.sql` (`user_version=2`). No hay un servidor de bases de datos aparte.
 - `data/uploads/`: fondos persistentes. Sus URL aleatorias son accesibles para el participante; no subas imágenes que deban permanecer privadas.
 - `data/secret.key`: clave de desarrollo local; en producción usa `SECRET_KEY` externo.
 - `.env`: configuración y secretos; excluido de Git y de la imagen Docker.
@@ -155,13 +164,13 @@ Se recomienda **una instancia** para uso personal. El bloqueo protege frente a t
 
 ```powershell
 python -m unittest discover -s tests -v
-node --test tests/flow.test.js tests/player.test.js
+node --test tests/flow.test.js tests/player.test.js tests/variables.test.js
 ```
 
 Node solo es necesario para las pruebas de la lógica del navegador. Si un sandbox de Windows impide `realpath` en carpetas superiores, el comando equivalente usado aquí es:
 
 ```powershell
-node --preserve-symlinks --preserve-symlinks-main --test tests/flow.test.js tests/player.test.js
+node --preserve-symlinks --preserve-symlinks-main --test tests/flow.test.js tests/player.test.js tests/variables.test.js
 ```
 
 Las pruebas Python usan un directorio temporal y no modifican tus formularios. Cubren recorridos, rangos, formatos, publicación, versiones, permisos, concurrencia, persistencia, imágenes, Excel y sincronización. Consulta `docs/VERIFICACION.md` para resultados y comprobaciones pendientes.

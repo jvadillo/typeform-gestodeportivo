@@ -22,6 +22,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from .storage import ROOT, DATA, init_db, connect, dumps, utcnow, setting, put_setting
 from .security import admin, init_security, hash_password, verify_password, sign_version, COOKIE, APP_URL, PRODUCTION
 from .engine import FormError, evaluate, validate_document
+from .variables import stored_variables
 from .seed import blank_document, example_document
 from .google import GoogleClient, GoogleError, process_jobs, resync_form, delete_submissions, BASE_COLUMNS, sheet_range
 from .export import make_workbook
@@ -367,6 +368,7 @@ async def submit(fid: str, request: Request):
                 raise HTTPException(409, 'Este identificador de envío ya se utilizó con otras respuestas.')
         else:
             db.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?,?,?)', (sid, fid, version, utcnow(), dumps(evaluated['answers']), evaluated['total'], evaluated['result']['id'], evaluated['result']['title'], fingerprint))
+            db.execute('INSERT INTO submission_variables VALUES(?,?)', (sid, dumps(evaluated['variables'])))
             integration = db.execute('SELECT * FROM integrations WHERE form_id=? AND enabled=1', (fid,)).fetchone()
             if integration:
                 db.execute('INSERT INTO jobs(submission_id,destination_id) VALUES(?,?)', (sid, integration['destination_id']))
@@ -389,8 +391,8 @@ def submissions(fid: str, start: str = '', end: str = ''):
     lower, upper = date_range(start, end)
     with connect() as db:
         get_form(db, fid)
-        rows = db.execute("SELECT s.*,COALESCE(j.status,'disabled') AS sync_status,j.error,j.attempts,j.destination_id,d.spreadsheet,d.title AS sheet_title FROM submissions s LEFT JOIN jobs j ON j.submission_id=s.id LEFT JOIN destinations d ON d.id=j.destination_id WHERE s.form_id=? AND s.completed>=? AND s.completed<? ORDER BY completed DESC", (fid, lower, upper)).fetchall()
-    return [{**dict(row), 'answers': json.loads(row['answers'])} for row in rows]
+        rows = db.execute("SELECT s.*,v.values_json AS variable_values,COALESCE(j.status,'disabled') AS sync_status,j.error,j.attempts,j.destination_id,d.spreadsheet,d.title AS sheet_title FROM submissions s LEFT JOIN submission_variables v ON v.submission_id=s.id LEFT JOIN jobs j ON j.submission_id=s.id LEFT JOIN destinations d ON d.id=j.destination_id WHERE s.form_id=? AND s.completed>=? AND s.completed<? ORDER BY completed DESC", (fid, lower, upper)).fetchall()
+    return [{**dict(row), 'answers': json.loads(row['answers']), 'variables': stored_variables(row)} for row in rows]
 
 
 @app.delete('/api/forms/{fid}/submissions', dependencies=[Depends(admin)])
@@ -414,7 +416,7 @@ def export(fid: str, start: str = '', end: str = ''):
     lower, upper = date_range(start, end)
     with connect() as db:
         form = get_form(db, fid)
-        rows = db.execute('SELECT * FROM submissions WHERE form_id=? AND completed>=? AND completed<? ORDER BY completed', (fid, lower, upper)).fetchall()
+        rows = db.execute('SELECT s.*,v.values_json AS variable_values FROM submissions s LEFT JOIN submission_variables v ON v.submission_id=s.id WHERE form_id=? AND completed>=? AND completed<? ORDER BY completed', (fid, lower, upper)).fetchall()
         versions = [json.loads(v['document']) for v in db.execute('SELECT document FROM versions WHERE form_id=? ORDER BY version', (fid,))]
         if not versions:
             versions = [json.loads(form['draft'])]

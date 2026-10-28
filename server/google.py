@@ -8,6 +8,7 @@ from uuid import uuid4
 import httpx
 from cryptography.fernet import Fernet
 from .engine import is_statement
+from .variables import stored_variables
 from .storage import DATA, connect, dumps, put_setting, setting, utcnow
 
 BASE_COLUMNS = [('_id', 'Identificador del envío'), ('_version', 'Versión'), ('_date', 'Fecha y hora (UTC)'), ('_score', 'Puntuación'), ('_result', 'Resultado')]
@@ -152,6 +153,7 @@ def column_name(number):
 def row_values(sub, columns):
     answers = {sub['form_id'] + ':' + a['question_id']: a['label'] for a in json.loads(sub['answers'])}
     values = {'_id': sub['id'], '_version': sub['version'], '_date': sub['completed'], '_score': sub['total'], '_result': sub['result_title'], **answers}
+    values.update({sub['form_id'] + ':variable:' + v['id']: v['value'] for v in stored_variables(sub)})
     return [values.get(c[0]) if values.get(c[0]) is not None else '' for c in columns]
 
 
@@ -162,7 +164,7 @@ def rebuild(client, destination_id, submission_ids, missing_ok=False):
     The caller holds the worker lock; the jobs only change after Google succeeds."""
     with connect() as db:
         dest = dict(db.execute('SELECT * FROM destinations WHERE id=?', (destination_id,)).fetchone())
-        subs = [dict(r) for r in db.execute('SELECT * FROM submissions WHERE id IN (SELECT value FROM json_each(?)) ORDER BY completed,id', (dumps(submission_ids),))]
+        subs = [dict(r) for r in db.execute('SELECT s.*,v.values_json AS variable_values FROM submissions s LEFT JOIN submission_variables v ON v.submission_id=s.id WHERE id IN (SELECT value FROM json_each(?)) ORDER BY completed,id', (dumps(submission_ids),))]
         forms = list(dict.fromkeys(s['form_id'] for s in subs))
         versions = {fid: [json.loads(v['document']) for v in db.execute('SELECT document FROM versions WHERE form_id=? ORDER BY version', (fid,))] for fid in forms}
     spreadsheet = dest['spreadsheet']
@@ -185,6 +187,8 @@ def rebuild(client, destination_id, submission_ids, missing_ok=False):
             for q in doc['questions']:
                 if not is_statement(q):
                     titles[fid + ':' + q['id']] = q['title']
+            for variable in doc.get('variables', []):
+                titles[fid + ':variable:' + variable['id']] = variable['name']
     columns = [list(c) for c in BASE_COLUMNS] + [[key, t + ' [' + key + ']'] for key, t in titles.items()]
     rows = [[c[1] for c in columns]] + [row_values(s, columns) for s in subs]
     grid = props.get('gridProperties', {})
@@ -236,7 +240,7 @@ def delete_submissions(client, form_id):
 def sync_job(client, submission_id):
     with connect() as db:
         job = dict(db.execute('SELECT * FROM jobs WHERE submission_id=?', (submission_id,)).fetchone())
-        sub = dict(db.execute('SELECT * FROM submissions WHERE id=?', (submission_id,)).fetchone())
+        sub = dict(db.execute('SELECT s.*,v.values_json AS variable_values FROM submissions s LEFT JOIN submission_variables v ON v.submission_id=s.id WHERE s.id=?', (submission_id,)).fetchone())
         dest = dict(db.execute('SELECT * FROM destinations WHERE id=?', (job['destination_id'],)).fetchone())
         doc = json.loads(db.execute('SELECT document FROM versions WHERE form_id=? AND version=?', (sub['form_id'], sub['version'])).fetchone()['document'])
     spreadsheet = dest['spreadsheet']
@@ -253,6 +257,11 @@ def sync_job(client, submission_id):
         if qkey not in known and not is_statement(q):
             columns.append([qkey, q['title'] + ' [' + qkey + ']'])
             known.add(qkey)
+    for variable in doc.get('variables', []):
+        vkey = sub['form_id'] + ':variable:' + variable['id']
+        if vkey not in known:
+            columns.append([vkey, variable['name'] + ' [' + vkey + ']'])
+            known.add(vkey)
     first = client.values(spreadsheet, sheet_range(title, '1:1'))
     if first:
         actual = first[0]

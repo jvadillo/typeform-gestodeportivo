@@ -1,5 +1,15 @@
 # Verificación de la entrega
 
+## Variables y cálculos · 28 de octubre de 2026
+
+- 46 pruebas Python y 48 pruebas Node, incluida actualización repetible del esquema sobre respuestas antiguas.
+- Verificación de ambos motores con los mismos casos de aritmética: sumar, restar, multiplicar, dividir, negativos, cero y precisión decimal. Recorridos que visitan las pantallas en un orden distinto al de la lista, vuelta atrás, cambios de rama y preguntas opcionales.
+- Condiciones sobre distintas variables con Y/O, prioridad, valores iniciales, uso de la respuesta numérica y protección frente a divisiones por cero, valores excesivos y referencias eliminadas.
+- Editor: alta, nombre y valor inicial, orden y eliminación de cálculos y condiciones, migración de puntos existentes sin duplicarlos, validación visible y bloqueo de cambios de tipo incompatibles.
+- API, persistencia y Excel: valores recalculados por el servidor, etiquetas históricas, versiones anteriores, variables añadidas posteriormente en blanco y eliminación en cascada de instantáneas. Sheets simulado: columnas estables al renombrar, nuevos campos y reconstrucción de históricos.
+- La ampliación de SQLite añade la tabla de instantáneas de variables sin modificar las columnas existentes de envíos; las respuestas anteriores conservan su puntuación. El esquema se actualiza al arrancar sin cambiar borradores ni publicaciones.
+- Revisión visual pendiente: Computer Use se detuvo al no poder determinar con suficiente confianza la URL de Chrome en Windows. No se efectuaron más acciones de interfaz ni se sustituyó esa protección por otra herramienta.
+
 ## Reglas de navegación por puntuación · 27 de octubre de 2026
 
 - 36 pruebas Python y 33 pruebas Node satisfactorias. Los seis comparadores comparten casos de frontera entre ambos motores.

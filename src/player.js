@@ -1,5 +1,6 @@
-import {Journey, resolveStyle, titleSizes, textSizes, score, resolveResult, isStatement} from './flow.js';
+import {Journey, resolveStyle, titleSizes, textSizes, resolveResult, isStatement} from './flow.js';
 import {esc, icon, uid} from './ui.js';
+import {resultVariableName} from './variables.js';
 const withAlpha = (hex, alpha) => alpha >= 1 ? hex : `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(' ')} / ${alpha})`;
 export function styleVars(doc, screen) {
   const s = resolveStyle(doc, screen);
@@ -14,16 +15,17 @@ export function answerMarkup(q, value, disabled = false) {
 }
 // Forms saved before the footer became configurable keep the original text.
 export const footerText = doc => doc.footer ?? 'gesto.';
-export const scoreFormats = {points: 'X puntos', of: 'X de Y puntos', slash: 'X/Y puntos'};
+export const scoreFormats = {points: 'Solo valor (X)', of: 'X de Y', slash: 'X/Y'};
 const points = n => n.toLocaleString('es-ES', {maximumFractionDigits: 2});
 export function scoreMarkup(doc, screen, total) {
+  const caption=resultVariableName(doc)==='Puntuación'?'Tu puntuación:':`${resultVariableName(doc)}:`;
   const max = doc.maxScore, format = max ? screen.scoreFormat || 'points' : 'points';
   // The editor canvas has no real total, so it previews a sample one.
   const value = total ?? (max ? Math.round(max * 70) / 100 : 0);
   const label = format === 'of' ? `${points(value)} de ${points(max)}` : format === 'slash' ? `${points(value)}/${points(max)}` : points(value);
-  if (!screen.scoreRing || !max) return `<div class="score"><span>Tu puntuación:</span><strong>${esc(label)}</strong></div>`;
+  if (!screen.scoreRing || !max) return `<div class="score"><span>${esc(caption)}</span><strong>${esc(label)}</strong></div>`;
   const ratio = Math.min(1, Math.max(0, value / max));
-  return `<div class="score"><span>Tu puntuación:</span><div class="score-ring" style="--score-ratio:${ratio}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="score-track" cx="60" cy="60" r="52"/>${ratio ? '<circle class="score-fill" cx="60" cy="60" r="52" pathLength="100"/>' : ''}</svg>${format === 'of' ? `<strong>${esc(points(value))}<small>de ${esc(points(max))}</small></strong>` : `<strong class="${label.length > 3 ? 'long' : ''}">${esc(label)}</strong>`}</div></div>`;
+  return `<div class="score"><span>${esc(caption)}</span><div class="score-ring" style="--score-ratio:${ratio}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="score-track" cx="60" cy="60" r="52"/>${ratio ? '<circle class="score-fill" cx="60" cy="60" r="52" pathLength="100"/>' : ''}</svg>${format === 'of' ? `<strong>${esc(points(value))}<small>de ${esc(points(max))}</small></strong>` : `<strong class="${label.length > 3 ? 'long' : ''}">${esc(label)}</strong>`}</div></div>`;
 }
 export function screenMarkup(doc, screen, {value, result = false, welcome = false, index = 0, total, error = '', busy = false, preview = false} = {}) {
   const statement = !result && !welcome && isStatement(screen);
@@ -111,7 +113,7 @@ export class Player {
       this.busy = true; this.render();
       const answers = this.journey.activeAnswers();
       if (this.submit) this.finished = await this.submit(this.id, answers);
-      else {const total = score(this.doc, answers); const result = resolveResult(this.doc, total); if (!result) throw new Error('No hay un resultado para esta puntuación. Revisa los intervalos.'); this.finished = {total, result};}
+      else {const total = this.journey.total; const result = resolveResult(this.doc, total); if (!result) throw new Error('No hay un resultado para esta puntuación. Revisa los intervalos.'); this.finished = {total, result};}
       this.error = '';
     } catch (error) { this.error = error.message; }
     this.busy = false; this.render(true);

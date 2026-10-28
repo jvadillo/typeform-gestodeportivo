@@ -1,0 +1,9 @@
+[
+  {"name":"four operations and independent variables","variables":[{"id":"x","name":"Fuerza","initial":1},{"id":"y","name":"Resistencia","initial":10}],"calculations":[{"variable":"x","operation":"add","value":5},{"variable":"x","operation":"subtract","value":2},{"variable":"x","operation":"multiply","value":4},{"variable":"x","operation":"divide","value":2},{"variable":"y","operation":"subtract","value":12}],"expected":{"x":8,"y":-2}},
+  {"name":"multiply before adding","variables":[{"id":"x","name":"Resultado","initial":0}],"calculations":[{"variable":"x","operation":"multiply","value":3},{"variable":"x","operation":"add","value":2}],"expected":{"x":2}},
+  {"name":"add before multiplying","variables":[{"id":"x","name":"Resultado","initial":0}],"calculations":[{"variable":"x","operation":"add","value":2},{"variable":"x","operation":"multiply","value":3}],"expected":{"x":6}},
+  {"name":"exact division recovery","variables":[{"id":"x","name":"Resultado","initial":1}],"calculations":[{"variable":"x","operation":"divide","value":3},{"variable":"x","operation":"multiply","value":3}],"expected":{"x":1}},
+  {"name":"decimal arithmetic","variables":[{"id":"x","name":"Resultado","initial":0.1}],"calculations":[{"variable":"x","operation":"add","value":0.2},{"variable":"x","operation":"divide","value":0.1}],"expected":{"x":3}},
+  {"name":"negative divisor","variables":[{"id":"x","name":"Resultado","initial":5}],"calculations":[{"variable":"x","operation":"divide","value":-2}],"expected":{"x":-2.5}},
+  {"name":"multiply by zero","variables":[{"id":"x","name":"Resultado","initial":5}],"calculations":[{"variable":"x","operation":"multiply","value":0}],"expected":{"x":0}}
+]

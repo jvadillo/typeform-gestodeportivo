@@ -253,6 +253,50 @@ class APITests(unittest.TestCase):
         url = response.json()['url']
         self.assertEqual(TestClient(app).get(url).status_code,200)
 
+    def test_variables_persist_historical_names_and_export_after_renaming(self):
+        from tests.test_variables import document
+        self.doc = document()
+        self.doc['results'][0]['showScore'] = True
+        self.assertEqual(self.save(self.doc)['errors'], [])
+        old = self.publish()
+        payload = self.submission(old, {'first': 'a', 'third': 'a', 'second': 2})
+        payload['variables'] = [{'id': 'x', 'value': 999}]
+        response = self.client.post(f'/api/public/{self.fid}/submit', json=payload)
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()['total'], 11)
+        self.doc['variables'][0]['name'] = '=Nombre nuevo'
+        self.doc['variables'].append({'id': 'z', 'name': 'Nueva', 'initial': 7})
+        self.doc['resultVariable'] = 'z'
+        self.save(self.doc)
+        new = self.publish()
+        second = self.submission(new, {'first': 'b', 'third': 'a', 'second': 0})
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=second).json()['total'], 7)
+        rows = {row['id']: row for row in self.client.get(f'/api/forms/{self.fid}/submissions').json()}
+        self.assertEqual(rows[payload['id']]['variables'], [{'id': 'x', 'name': 'Fuerza', 'value': 11}, {'id': 'y', 'name': 'Resistencia', 'value': 0}])
+        self.assertEqual(rows[second['id']]['variables'][0], {'id': 'x', 'name': '=Nombre nuevo', 'value': -3})
+        sheet = load_workbook(io.BytesIO(self.client.get(f'/api/forms/{self.fid}/export').content)).active
+        headers = [c.value for c in sheet[1]]
+        x, y, z = [headers.index(label) + 1 for label in ['=Nombre nuevo [variable:x]', 'Resistencia [variable:y]', 'Nueva [variable:z]']]
+        self.assertEqual(sheet.cell(1, x).data_type, 's')
+        self.assertEqual(sheet.cell(2, x).value, 11)
+        self.assertEqual(sheet.cell(2, y).value, 0)
+        self.assertIsNone(sheet.cell(2, z).value)
+        self.assertEqual(sheet.cell(3, z).value, 7)
+        again = self.submission(old, {'first': 'a', 'third': 'a'})
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=again).json()['total'], 9)
+        with connect() as db:
+            db.execute('DELETE FROM submissions WHERE id=?', (again['id'],))
+            self.assertIsNone(db.execute('SELECT 1 FROM submission_variables WHERE submission_id=?', (again['id'],)).fetchone())
+
+    def test_legacy_submissions_without_variable_snapshot_remain_readable(self):
+        payload = self.submission()
+        self.client.post(f'/api/public/{self.fid}/submit', json=payload)
+        with connect() as db:
+            db.execute('DELETE FROM submission_variables WHERE submission_id=?', (payload['id'],))
+        row = self.client.get(f'/api/forms/{self.fid}/submissions').json()[0]
+        self.assertEqual(row['variables'], [{'id': 'score', 'name': 'Puntuación', 'value': 6}])
+        self.assertEqual(self.client.get(f'/api/forms/{self.fid}/export').status_code, 200)
+
     def test_gallery_lists_uploads_newest_first_and_is_private(self):
         urls = []
         for color in ['red', 'blue']:
@@ -389,6 +433,36 @@ class SyncTests(unittest.TestCase):
             self.assertTrue(first)
             with worker_lock() as second:
                 self.assertFalse(second)
+
+    def test_variables_sync_with_stable_ids_and_rebuild_historical_values(self):
+        from tests.test_variables import document
+        from server.google import rebuild
+        self.doc = document()
+        self.save(self.doc)
+        destination = self.connect_sheet()
+        first = self.submission(self.publish(), {'first': 'a', 'third': 'a', 'second': 2})
+        self.client.post(f'/api/public/{self.fid}/submit', json=first)
+        fake = FakeSheets()
+        process_jobs(fake)
+        key = self.fid + ':variable:x'
+        first_header = fake.rows[1][:]
+        x = next(i for i, h in enumerate(first_header) if '[' + key + ']' in h)
+        self.assertEqual(fake.rows[2][x], 11)
+        self.doc['variables'][0]['name'] = 'Fuerza actualizada'
+        self.doc['variables'].append({'id': 'z', 'name': 'Extra', 'initial': 5})
+        self.save(self.doc)
+        second = self.submission(self.publish(), {'first': 'b', 'third': 'a'})
+        self.client.post(f'/api/public/{self.fid}/submit', json=second)
+        process_jobs(fake)
+        self.assertEqual(fake.rows[1][x], first_header[x])
+        self.assertEqual(fake.rows[3][x], -3)
+        self.assertEqual(fake.rows[3][-1], 5)
+        rebuild(fake, destination, [first['id'], second['id']])
+        x = next(i for i, h in enumerate(fake.rows[1]) if '[' + key + ']' in h)
+        self.assertTrue(fake.rows[1][x].startswith('Fuerza actualizada'))
+        self.assertEqual(fake.rows[2][x], 11)
+        self.assertEqual(fake.rows[3][x], -3)
+        self.assertEqual(fake.rows[2][-1], '')
 
     def test_google_uses_raw_literals_and_refreshes_token(self):
         from unittest.mock import patch

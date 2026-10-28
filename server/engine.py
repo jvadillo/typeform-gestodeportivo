@@ -1,7 +1,8 @@
 """Authoritative form validation and route/score evaluation, independent of HTTP."""
 import math
 import re
-from decimal import Decimal, localcontext
+from .variables import (definitions, result_variable, variable_errors, calculation_errors, condition_errors,
+                        initial_values, apply_calculations, matches_rule, snapshots)
 
 TYPES = {'choice', 'short', 'long', 'number', 'email', 'statement'}
 SCORE_FORMATS = {'points', 'of', 'slash'}
@@ -53,6 +54,10 @@ def validate_document(doc):
         return ['Preguntas y resultados deben ser listas.']
     if not 1 <= len(questions) <= 100 or not 1 <= len(results) <= 20:
         return ['Añade entre 1 y 100 preguntas y entre 1 y 20 resultados.']
+    errors.extend(variable_errors(doc))
+    if errors:
+        return errors
+    variable_ids = {v['id'] for v in definitions(doc)}
     screens = [doc.get('welcome', {})] + questions + results
     ids = set()
     errors.extend(style_errors(doc.get('style', {})))
@@ -86,6 +91,10 @@ def validate_document(doc):
             errors.append('La obligatoriedad debe ser verdadera o falsa.')
         if is_statement(q) and (not isinstance(q.get('button', ''), str) or len(q.get('button', '')) > 100):
             errors.append('El texto del botón debe tener como máximo 100 caracteres.')
+        if q.get('type') not in ('choice', 'statement'):
+            errors.extend(calculation_errors(q, variable_ids, q.get('type')))
+        elif q.get('calculations'):
+            errors.append('Los cálculos se asignan a las respuestas; una pantalla de texto no admite cálculos.')
         targets = [q.get('next', 'next')]
         rules = q.get('scoreRules', [])
         if not isinstance(rules, list) or len(rules) > 50:
@@ -95,10 +104,7 @@ def validate_document(doc):
                 if not isinstance(rule, dict):
                     errors.append('Regla de puntuación inválida.')
                     continue
-                if not isinstance(rule.get('operator'), str) or rule['operator'] not in SCORE_OPERATORS:
-                    errors.append('El comparador de la regla de puntuación no es válido.')
-                if not finite(rule.get('value')):
-                    errors.append('El valor de la regla de puntuación debe ser un número finito entre −10¹² y 10¹².')
+                errors.extend(condition_errors(rule, variable_ids))
                 targets.append(rule.get('next'))
         if q.get('type') == 'choice':
             options = q.get('options', [])
@@ -115,6 +121,7 @@ def validate_document(doc):
                     errors.append('Cada opción necesita una etiqueta (máximo 1000 caracteres).')
                 if not finite(opt.get('points', 0)):
                     errors.append('Los puntos deben ser números finitos entre −10¹² y 10¹².')
+                errors.extend(calculation_errors(opt, variable_ids, 'choice'))
                 targets.append(opt.get('next') or q.get('next', 'next'))
         for target in targets:
             if not isinstance(target, str) or target not in {'next', 'end'} | qids:
@@ -195,25 +202,11 @@ def answer_value(q, value):
     return value
 
 
-def matches_score_rule(rule, total):
-    value = rule['value']
-    return {
-        'gt': total > value, 'lt': total < value, 'eq': total == value,
-        'gte': total >= value, 'lte': total <= value, 'neq': total != value,
-    }.get(rule['operator'], False)
-
-
-def score_total(answers):
-    # Match the browser's decimal sum, including very small finite point values.
-    with localcontext() as context:
-        context.prec = 400
-        return float(sum((Decimal(str(answer['points'])) for answer in answers), Decimal(0)))
-
-
 def evaluate(doc, answers):
     if not isinstance(answers, dict):
         raise FormError('Respuestas inválidas.')
-    active, seen, total = [], set(), 0
+    active, seen = [], set()
+    state = initial_values(doc)
     questions = doc['questions']
     by_id = {q['id']: i for i, q in enumerate(questions)}
     index = 0
@@ -229,12 +222,16 @@ def evaluate(doc, answers):
         else:
             value = answer_value(q, answers.get(q['id']))
             opt = next((o for o in q.get('options', []) if q['type'] == 'choice' and o['id'] == value), None)
-            points = opt.get('points', 0) if opt else 0
+            points = opt.get('points', 0) if opt and 'calculations' not in opt else 0
             active.append({'question_id': q['id'], 'title': q['title'], 'type': q['type'], 'value': value, 'label': opt['label'] if opt else value, 'points': points})
-            total = score_total(active)
+            if value is not None:
+                try:
+                    apply_calculations(state, opt if opt else q, value)
+                except ValueError as exc:
+                    raise FormError(str(exc)) from None
         target = (opt.get('next') if opt else None) or q.get('next', 'next')
         for rule in q.get('scoreRules', []):
-            if matches_score_rule(rule, total):
+            if matches_rule(rule, state):
                 target = rule['next']
                 break
         if target == 'end':
@@ -243,8 +240,9 @@ def evaluate(doc, answers):
     # Reject stale branch answers rather than allowing tampered submissions to hide data.
     if set(answers) - seen:
         raise FormError('Hay respuestas de una rama que ya no forma parte del recorrido.')
+    total = float(state[result_variable(doc)])
     results = doc['results']
     result = results[0] if len(results) == 1 else next((r for r in results if not r.get('default') and (r.get('min') is None or total >= r['min']) and (r.get('max') is None or total < r['max'])), next((r for r in results if r.get('default')), None))
     if not result:
         raise FormError('No hay un resultado para esta puntuación.')
-    return {'answers': active, 'total': total, 'result': result}
+    return {'answers': active, 'total': total, 'result': result, 'variables': snapshots(doc, state)}
