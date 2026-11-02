@@ -68,7 +68,7 @@ export class Player {
       if (!reduced) this.container.classList.add('is-leaving');
       this.advanceTimer = setTimeout(() => {
         if (stillCurrent()) this.next();
-      }, reduced ? 0 : 160);
+      }, reduced ? 0 : 320);
     }, 300);
   }
   input(e) {

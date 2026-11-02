@@ -56,12 +56,12 @@ test('legacy colors, independent overrides and five responsive title sizes',()=>
 test('selection shows feedback before following its conditional destination once',t=>{
   const {player,tick,classes}=fixture(t);
   player.selectChoice('a');tick(299);assert.equal(player.journey.current.id,'route');
-  tick(1);assert.ok(classes.has('is-leaving'));tick(160);
+  tick(1);assert.ok(classes.has('is-leaving'));tick(320);
   assert.equal(player.journey.current.id,'branch');assert.deepEqual(player.journey.history,['route','branch']);
   tick(1000);assert.equal(player.journey.current.id,'branch');
 });
 test('new selection replaces the pending advance and resolves the correct result',t=>{
-  const {player,tick}=fixture(t);player.selectChoice('a');tick(200);player.selectChoice('b');tick(460);
+  const {player,tick}=fixture(t);player.selectChoice('a');tick(200);player.selectChoice('b');tick(620);
   assert.equal(player.finished.total,-1);assert.deepEqual(player.journey.activeAnswers(),{route:'b'});
 });
 test('manual next and back cancel pending timers rather than skipping a question',async t=>{
@@ -85,13 +85,13 @@ test('arrow navigation does not auto-submit; repeated keys do not advance again'
 test('Enter confirms the focused option rather than a previously selected one',t=>{
   const {player,tick}=fixture(t);player.selectChoice('a',false);
   player.key({key:'Enter',target:{tagName:'BUTTON',closest:()=>({dataset:{option:'b'}})},preventDefault(){}});
-  tick(460);assert.equal(player.finished.total,-1);
+  tick(620);assert.equal(player.finished.total,-1);
 });
 test('auto-completion submits once, keeps the ID on failure, and allows retry',async t=>{
   const {player,tick}=fixture(t);
   let reject, calls=0;
   player.submit=(id,answers)=>{calls++;assert.equal(id,'stable-id');assert.deepEqual(answers,{route:'b'});return new Promise((_,no)=>{reject=no;});};
-  player.selectChoice('b');tick(460);player.selectChoice('b');await player.next();
+  player.selectChoice('b');tick(620);player.selectChoice('b');await player.next();
   assert.equal(calls,1);reject(new Error('Sin conexión'));await Promise.resolve();
   assert.equal(player.busy,false);assert.equal(player.error,'Sin conexión');
   player.submit=async id=>{calls++;assert.equal(id,'stable-id');return {result:doc.results[0],total:-1};};
@@ -138,7 +138,7 @@ test('editor creates, edits, reorders and removes navigation rules independently
 test('automatic choice advance and preview completion apply score rules after awarding points',t=>{
   const {player,tick}=fixture(t);
   player.doc.questions[0].scoreRules=[{operator:'gte',value:2,next:'end'}];
-  player.selectChoice('a');tick(460);
+  player.selectChoice('a');tick(620);
   assert.equal(player.finished.total,2);
   assert.equal(player.finished.result.id,'result');
   assert.deepEqual(player.journey.activeAnswers(),{route:'a'});
