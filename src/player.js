@@ -1,39 +1,49 @@
 import {Journey, resolveStyle, titleSizes, textSizes, resolveResult, isStatement} from './flow.js';
 import {esc, icon, uid} from './ui.js';
 import {resultVariableName} from './variables.js';
+import {i18nConfig, allLanguages, translator, translateMessage, localize} from './i18n.js';
 const withAlpha = (hex, alpha) => alpha >= 1 ? hex : `rgb(${[1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(' ')} / ${alpha})`;
 export function styleVars(doc, screen) {
   const s = resolveStyle(doc, screen);
   const fonts = {sans: "'Segoe UI', sans-serif", serif: "Georgia, serif", mono: "'Courier New', monospace"};
   return `--screen-bg:${s.background};--screen-text:${s.text};--screen-title-text:${s.titleText};--screen-option-text:${s.optionText};--title-scale:${titleSizes[s.titleSize]?.[1] ?? 1};--text-scale:${textSizes[s.textSize]?.[1] ?? 1};--screen-button:${s.button};--screen-button-text:${s.buttonText};--screen-option:${s.option};--screen-option-bg:${withAlpha(s.option, s.optionOpacity)};--screen-image:${s.image ? `url('${s.image}')` : 'none'};--screen-position:${s.x}% ${s.y}%;--screen-overlay:${s.overlay};--screen-opacity:${s.image ? s.opacity : 0};--screen-font:${fonts[s.font] || fonts.sans}`;
 }
-export function answerMarkup(q, value, disabled = false) {
+export function answerMarkup(q, value, disabled = false, t = translator({}, 'es')) {
   const off = disabled ? 'disabled' : '';
   if (q.type === 'choice') return `<div class="choices" role="radiogroup" aria-label="${esc(q.title)}">${q.options.map((o, i) => `<button type="button" class="choice ${value === o.id ? 'selected' : ''}" role="radio" aria-checked="${value === o.id}" data-option="${esc(o.id)}" ${off}><span class="key">${i < 26 ? String.fromCharCode(65+i) : i+1}</span><span>${esc(o.label)}</span>${value === o.id ? icon('check') : ''}</button>`).join('')}</div>`;
   const common = `id="participant-answer" aria-label="${esc(q.title)}" aria-describedby="answer-error" ${off} autocomplete="${q.type === 'email' ? 'email' : 'off'}"`;
-  return q.type === 'long' ? `<textarea ${common} placeholder="Escribe tu respuesta aquí…" maxlength="10000">${esc(value)}</textarea><small class="answer-hint">Enter para una nueva línea · Ctrl + Enter para continuar</small>` : `<input ${common} type="${q.type === 'number' ? 'number' : q.type === 'email' ? 'email' : 'text'}" ${q.type === 'number' ? 'step="any"' : 'maxlength="1000"'} value="${esc(value)}" placeholder="${q.type === 'email' ? 'nombre@ejemplo.com' : q.type === 'number' ? 'Escribe un número…' : 'Escribe tu respuesta aquí…'}"/>`;
+  return q.type === 'long' ? `<textarea ${common} placeholder="${esc(t('placeholderText'))}" maxlength="10000">${esc(value)}</textarea><small class="answer-hint">${esc(t('hintLong'))}</small>` : `<input ${common} type="${q.type === 'number' ? 'number' : q.type === 'email' ? 'email' : 'text'}" ${q.type === 'number' ? 'step="any"' : 'maxlength="1000"'} value="${esc(value)}" placeholder="${esc(q.type === 'email' ? 'nombre@ejemplo.com' : t(q.type === 'number' ? 'placeholderNumber' : 'placeholderText'))}"/>`;
 }
 // Forms saved before the footer became configurable keep the original text.
 export const footerText = doc => doc.footer ?? 'gesto.';
 export const scoreFormats = {points: 'Solo valor (X)', of: 'X de Y', slash: 'X/Y'};
-const points = n => n.toLocaleString('es-ES', {maximumFractionDigits: 2});
-export function scoreMarkup(doc, screen, total) {
-  const caption=resultVariableName(doc)==='Puntuación'?'Tu puntuación:':`${resultVariableName(doc)}:`;
+export function scoreMarkup(doc, screen, total, t = translator({}, 'es')) {
+  const points = n => n.toLocaleString(t.lang === 'es' ? 'es-ES' : t.lang, {maximumFractionDigits: 2});
+  const caption=resultVariableName(doc)==='Puntuación'?t('yourScore'):`${resultVariableName(doc)}:`;
   const max = doc.maxScore, format = max ? screen.scoreFormat || 'points' : 'points';
   // The editor canvas has no real total, so it previews a sample one.
   const value = total ?? (max ? Math.round(max * 70) / 100 : 0);
-  const label = format === 'of' ? `${points(value)} de ${points(max)}` : format === 'slash' ? `${points(value)}/${points(max)}` : points(value);
+  const label = format === 'of' ? `${points(value)} ${t('of')} ${points(max)}` : format === 'slash' ? `${points(value)}/${points(max)}` : points(value);
   if (!screen.scoreRing || !max) return `<div class="score"><span>${esc(caption)}</span><strong>${esc(label)}</strong></div>`;
   const ratio = Math.min(1, Math.max(0, value / max));
-  return `<div class="score"><span>${esc(caption)}</span><div class="score-ring" style="--score-ratio:${ratio}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="score-track" cx="60" cy="60" r="52"/>${ratio ? '<circle class="score-fill" cx="60" cy="60" r="52" pathLength="100"/>' : ''}</svg>${format === 'of' ? `<strong>${esc(points(value))}<small>de ${esc(points(max))}</small></strong>` : `<strong class="${label.length > 3 ? 'long' : ''}">${esc(label)}</strong>`}</div></div>`;
+  return `<div class="score"><span>${esc(caption)}</span><div class="score-ring" style="--score-ratio:${ratio}"><svg viewBox="0 0 120 120" aria-hidden="true"><circle class="score-track" cx="60" cy="60" r="52"/>${ratio ? '<circle class="score-fill" cx="60" cy="60" r="52" pathLength="100"/>' : ''}</svg>${format === 'of' ? `<strong>${esc(points(value))}<small>${esc(t('of'))} ${esc(points(max))}</small></strong>` : `<strong class="${label.length > 3 ? 'long' : ''}">${esc(label)}</strong>`}</div></div>`;
 }
-export function screenMarkup(doc, screen, {value, result = false, welcome = false, index = 0, total, error = '', busy = false, preview = false} = {}) {
+export function switcherMarkup(doc, lang) {
+  const cfg = i18nConfig(doc), languages = allLanguages(doc);
+  if (!cfg.switcher.enabled || languages.length < 2) return '';
+  const [side, align] = cfg.switcher.position.split('-'), t = translator(doc, lang);
+  return `<nav class="lang-switcher is-${side} is-${align}" aria-label="${esc(t('language'))}">${languages.map(l => `<button type="button" data-lang="${esc(l.code)}" lang="${esc(l.code)}" aria-pressed="${l.code === lang}" title="${esc(l.name)}">${esc(cfg.switcher.label === 'short' ? l.short : l.name)}</button>`).join('')}</nav>`;
+}
+export function screenMarkup(doc, screen, {value, result = false, welcome = false, index = 0, total, error = '', busy = false, preview = false, lang = i18nConfig(doc).default.code, t = translator(doc, lang)} = {}) {
   const statement = !result && !welcome && isStatement(screen);
-  return `<div class="screen-bg" aria-hidden="true"></div><div class="screen-content"><h1 tabindex="-1">${esc(screen.title)}</h1>${screen.description ? `<p class="screen-description">${esc(screen.description)}</p>` : ''}${result ? `${screen.showScore ? scoreMarkup(doc, screen, total) : ''}<p class="completion">${icon('check')} ${preview ? 'Vista previa completada · no se ha registrado ningún envío' : 'Tus respuestas se han guardado. Gracias por compartirlas.'}</p>` : welcome ? `<button class="screen-button" data-next>${esc(screen.button || 'Empezar')} ${icon('arrow')}</button><p class="screen-hint">A tu ritmo. Una pregunta cada vez.</p>` : `${statement ? '' : answerMarkup(screen, value)}<div class="answer-error" id="answer-error" role="alert">${esc(error)}</div><div class="screen-actions"><button class="screen-button" data-next ${busy ? 'disabled' : ''}>${busy ? 'Guardando…' : esc(statement && screen.button || 'Continuar')} ${icon(busy ? 'clock' : 'arrow')}</button><span class="screen-hint">${screen.type === 'long' ? 'Ctrl + Enter ↵' : 'pulsa Enter ↵'}</span></div>`}</div><footer class="screen-footer"><span class="participant-brand">${esc(footerText(doc))}</span>${!welcome && !result ? `<span class="step-indicator">Paso ${index + 1}</span><button class="screen-back" data-back aria-label="Volver a la pantalla anterior" ${busy ? 'disabled' : ''}>${icon('up')}</button>` : ''}</footer>`;
+  const switcher = switcherMarkup(doc, lang), top = switcher && i18nConfig(doc).switcher.position.startsWith('top');
+  return `<div class="screen-bg" aria-hidden="true"></div>${top ? switcher : ''}<div class="screen-content"><h1 tabindex="-1">${esc(screen.title)}</h1>${screen.description ? `<p class="screen-description">${esc(screen.description)}</p>` : ''}${result ? `${screen.showScore ? scoreMarkup(doc, screen, total, t) : ''}<p class="completion">${icon('check')} ${preview ? 'Vista previa completada · no se ha registrado ningún envío' : esc(t('done'))}</p>` : welcome ? `<button class="screen-button" data-next>${esc(screen.button || t('start'))} ${icon('arrow')}</button><p class="screen-hint">${esc(t('welcomeHint'))}</p>` : `${statement ? '' : answerMarkup(screen, value, false, t)}<div class="answer-error" id="answer-error" role="alert">${esc(error)}</div><div class="screen-actions"><button class="screen-button" data-next ${busy ? 'disabled' : ''}>${busy ? esc(t('saving')) : esc(statement && screen.button || t('continue'))} ${icon(busy ? 'clock' : 'arrow')}</button><span class="screen-hint">${esc(t(screen.type === 'long' ? 'hintCtrl' : 'hintEnter'))}</span></div>`}</div><footer class="screen-footer"><span class="participant-brand">${esc(footerText(doc))}</span>${!welcome && !result ? `<span class="step-indicator">${esc(t('step'))} ${index + 1}</span><button class="screen-back" data-back aria-label="${esc(t('back'))}" ${busy ? 'disabled' : ''}>${icon('up')}</button>` : ''}</footer>${switcher && !top ? switcher : ''}`;
 }
 export class Player {
-  constructor(container, doc, {submit, preview = false} = {}) {
-    this.container = container; this.doc = doc; this.submit = submit; this.preview = preview; this.journey = new Journey(doc); this.id = uid(); this.error = ''; this.busy = false; this.finished = null;
+  constructor(container, doc, {submit, preview = false, lang, onLanguage} = {}) {
+    const cfg = i18nConfig(doc);
+    this.source = doc; this.onLanguage = onLanguage; this.lang = allLanguages(doc).some(l => l.code === lang) ? lang : cfg.default.code;
+    this.container = container; this.doc = localize(doc, this.lang); this.submit = submit; this.preview = preview; this.journey = new Journey(this.doc); this.id = uid(); this.error = ''; this.busy = false; this.finished = null;
     this.abort = new AbortController(); const signal = this.abort.signal;
     container.addEventListener('click', e => this.click(e), {signal});
     container.addEventListener('input', e => this.input(e), {signal});
@@ -46,11 +56,20 @@ export class Player {
     this.container.classList.remove('is-leaving');
   }
   destroy() { this.cancelAdvance(); this.abort.abort(); }
+  get t() { const doc = this.source ?? this.doc; return translator(doc, this.lang ?? i18nConfig(doc).default.code); }
+  setLanguage(code) {
+    if (code === this.lang || this.busy || !allLanguages(this.source).some(l => l.code === code)) return;
+    this.cancelAdvance();
+    // Same journey and answers: only the texts change.
+    this.lang = code; this.doc = localize(this.source, code); this.journey.doc = this.doc; this.error = '';
+    this.render(); this.onLanguage?.(code);
+  }
   render(focus = false, selection = false) {
-    const welcome = this.journey.cursor < 0, screen = this.finished?.result || (welcome ? this.doc.welcome : this.journey.current);
+    const welcome = this.journey.cursor < 0, result = this.finished && (this.doc.results.find(r => r.id === this.finished.result.id) || this.finished.result);
+    const screen = result || (welcome ? this.doc.welcome : this.journey.current);
     this.container.className = `participant ${this.preview ? 'is-preview' : ''}`;
     this.container.style.cssText = styleVars(this.doc, screen);
-    this.container.innerHTML = screenMarkup(this.doc, screen, {welcome, result: !!this.finished, total: this.finished?.total, value: this.journey.answers[screen.id], index: this.journey.cursor, error: this.error, busy: this.busy, preview: this.preview});
+    this.container.innerHTML = screenMarkup(this.doc, screen, {welcome, result: !!this.finished, total: this.finished?.total, value: this.journey.answers[screen.id], index: this.journey.cursor, error: this.error, busy: this.busy, preview: this.preview, lang: this.lang, t: this.t});
     if (selection) this.container.querySelector('.screen-content').classList.add('choice-feedback');
     if (focus) this.container.querySelector('h1').focus({preventScroll: true});
   }
@@ -78,6 +97,8 @@ export class Player {
     this.error = ''; this.container.querySelector('#answer-error').textContent = '';
   }
   click(e) {
+    const language = e.target.closest('[data-lang]');
+    if (language) { this.setLanguage(language.dataset.lang); this.container.querySelector(`[data-lang="${CSS.escape(this.lang)}"]`)?.focus({preventScroll: true}); return; }
     if (this.busy || this.finished || e.detail > 1) return;
     const choice = e.target.closest('[data-option]');
     if (choice) {this.selectChoice(choice.dataset.option); return;}
@@ -112,10 +133,10 @@ export class Player {
       if (this.journey.next()) {this.error = ''; this.render(true); return;}
       this.busy = true; this.render();
       const answers = this.journey.activeAnswers();
-      if (this.submit) this.finished = await this.submit(this.id, answers);
+      if (this.submit) this.finished = await this.submit(this.id, answers, this.lang);
       else {const total = this.journey.total; const result = resolveResult(this.doc, total); if (!result) throw new Error('No hay un resultado para esta puntuación. Revisa los intervalos.'); this.finished = {total, result};}
       this.error = '';
-    } catch (error) { this.error = error.message; }
+    } catch (error) { this.error = translateMessage(this.t, error.message); }
     this.busy = false; this.render(true);
     if (this.error) this.container.querySelector('#participant-answer')?.setAttribute('aria-invalid', 'true');
   }

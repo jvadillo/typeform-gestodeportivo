@@ -21,7 +21,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 
 from .storage import ROOT, DATA, init_db, connect, dumps, utcnow, setting, put_setting
 from .security import admin, init_security, hash_password, verify_password, sign_version, COOKIE, APP_URL, PRODUCTION
-from .engine import FormError, evaluate, validate_document
+from .engine import FormError, evaluate, validate_document, language_codes
 from .variables import stored_variables
 from .seed import blank_document, example_document
 from .google import GoogleClient, GoogleError, process_jobs, resync_form, delete_submissions, BASE_COLUMNS, sheet_range
@@ -367,7 +367,8 @@ async def submit(fid: str, request: Request):
             if prior['fingerprint'] != fingerprint:
                 raise HTTPException(409, 'Este identificador de envío ya se utilizó con otras respuestas.')
         else:
-            db.execute('INSERT INTO submissions VALUES(?,?,?,?,?,?,?,?,?)', (sid, fid, version, utcnow(), dumps(evaluated['answers']), evaluated['total'], evaluated['result']['id'], evaluated['result']['title'], fingerprint))
+            lang = data.get('lang') if data.get('lang') in language_codes(doc) else None
+            db.execute('INSERT INTO submissions(id,form_id,version,completed,answers,total,result_id,result_title,fingerprint,lang) VALUES(?,?,?,?,?,?,?,?,?,?)', (sid, fid, version, utcnow(), dumps(evaluated['answers']), evaluated['total'], evaluated['result']['id'], evaluated['result']['title'], fingerprint, lang))
             db.execute('INSERT INTO submission_variables VALUES(?,?)', (sid, dumps(evaluated['variables'])))
             integration = db.execute('SELECT * FROM integrations WHERE form_id=? AND enabled=1', (fid,)).fetchone()
             if integration:

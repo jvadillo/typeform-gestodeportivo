@@ -45,6 +45,51 @@ def style_errors(style):
     return errors
 
 
+LANGUAGE_CODE = re.compile(r'^[a-z]{2,3}(-[a-z0-9]{2,8})?$')
+SWITCHER_POSITIONS = {'top-left', 'top-center', 'top-right', 'bottom-left', 'bottom-center', 'bottom-right'}
+
+
+def language_codes(doc):
+    """Main language first, then the translations."""
+    i18n = doc.get('i18n') or {}
+    default = i18n.get('default') or {'code': 'es'}
+    return [default.get('code')] + [l.get('code') for l in i18n.get('languages', []) if isinstance(l, dict)]
+
+
+def i18n_errors(doc):
+    i18n = doc.get('i18n')
+    if i18n is None:
+        return []
+    if not isinstance(i18n, dict):
+        return ['La configuración de idiomas no es válida.']
+    errors = []
+    languages = i18n.get('languages', [])
+    translations = i18n.get('translations', {})
+    if not isinstance(languages, list) or len(languages) > 12 or not isinstance(translations, dict):
+        return ['La configuración de idiomas no es válida (máximo 12 traducciones).']
+    entries = [i18n.get('default') or {'code': 'es', 'name': 'Español', 'short': 'ES'}] + languages
+    seen = set()
+    for entry in entries:
+        if not isinstance(entry, dict) or not isinstance(entry.get('code'), str) or not LANGUAGE_CODE.fullmatch(entry['code']):
+            return ['Cada idioma necesita un código en minúsculas, por ejemplo «es», «eu» o «pt-br».']
+        if entry['code'] in seen:
+            errors.append(f'El idioma «{entry["code"]}» está repetido.')
+        seen.add(entry['code'])
+        for key, limit in (('name', 40), ('short', 8)):
+            if not isinstance(entry.get(key), str) or not entry[key].strip() or len(entry[key]) > limit:
+                errors.append(f'El idioma «{entry["code"]}» necesita {"un nombre" if key == "name" else "una abreviatura"} (máximo {limit} caracteres).')
+    switcher = i18n.get('switcher', {})
+    if not isinstance(switcher, dict) or not isinstance(switcher.get('enabled', False), bool) or switcher.get('position', 'top-right') not in SWITCHER_POSITIONS or switcher.get('label', 'full') not in ('full', 'short'):
+        errors.append('La configuración del selector de idioma no es válida.')
+    extra = set(translations) - {l['code'] for l in languages}
+    if extra:
+        errors.append('Hay traducciones de un idioma que no está configurado.')
+    for code, texts in translations.items():
+        if not isinstance(texts, dict) or len(texts) > 3000 or any(not isinstance(k, str) or len(k) > 200 or not isinstance(v, str) or len(v) > 10000 for k, v in texts.items()):
+            errors.append(f'Las traducciones de «{code}» no son válidas.')
+    return errors
+
+
 def validate_document(doc):
     errors = []
     if not isinstance(doc, dict):
@@ -61,6 +106,7 @@ def validate_document(doc):
     screens = [doc.get('welcome', {})] + questions + results
     ids = set()
     errors.extend(style_errors(doc.get('style', {})))
+    errors.extend(i18n_errors(doc))
     if not isinstance(doc.get('footer', ''), str) or len(doc.get('footer', '')) > 100:
         errors.append('El texto del pie debe tener como máximo 100 caracteres.')
     for screen in screens:

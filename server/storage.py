@@ -40,6 +40,9 @@ def init_db():
         if 'slug' not in {c['name'] for c in db.execute('PRAGMA table_info(forms)')}:
             db.execute('ALTER TABLE forms ADD COLUMN slug TEXT')
         db.execute('CREATE UNIQUE INDEX IF NOT EXISTS forms_slug ON forms(slug)')
+        # Language the participant used. Answers keep the main-language texts; this only records the choice.
+        if 'lang' not in {c['name'] for c in db.execute('PRAGMA table_info(submissions)')}:
+            db.execute('ALTER TABLE submissions ADD COLUMN lang TEXT')
 
 
 def setting(db, key, default=None):

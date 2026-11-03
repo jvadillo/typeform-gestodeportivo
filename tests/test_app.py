@@ -561,6 +561,58 @@ class SyncTests(unittest.TestCase):
         process_jobs(fresh)
         self.assertEqual(fresh.rows[2][0],payload['id'])
 
+    def multilingual(self):
+        self.doc['i18n'] = {'default': {'code': 'es', 'name': 'Español', 'short': 'ES'}, 'languages': [{'code': 'eu', 'name': 'Euskera', 'short': 'EU'}], 'switcher': {'enabled': True, 'position': 'bottom-left', 'label': 'short'}, 'translations': {'eu': {'interes.title': 'Zer lantzea gustatuko litzaizuke?', 'ui.continue': 'Aurrera'}}}
+        return self.save(self.doc)
+
+    def test_translations_are_versioned_with_the_form_and_answers_stay_in_the_main_language(self):
+        self.assertEqual(self.multilingual()['errors'], [])
+        public = self.publish()
+        self.assertEqual(public['document']['i18n']['translations']['eu']['ui.continue'], 'Aurrera')
+        self.doc['i18n']['translations']['eu']['interes.title'] = 'Cambiado después'
+        self.save(self.doc)
+        self.assertEqual(self.client.get('/api/public/' + self.fid).json()['document']['i18n']['translations']['eu']['interes.title'], 'Zer lantzea gustatuko litzaizuke?')
+        payload = {**self.submission(public), 'lang': 'eu'}
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=payload).status_code, 200)
+        other = {**self.submission(public), 'lang': 'fr'}
+        self.assertEqual(self.client.post(f'/api/public/{self.fid}/submit', json=other).status_code, 200)
+        plain = self.submission(public)
+        self.client.post(f'/api/public/{self.fid}/submit', json=plain)
+        rows = {r['id']: r for r in self.client.get(f'/api/forms/{self.fid}/submissions').json()}
+        self.assertEqual(rows[payload['id']]['lang'], 'eu')
+        self.assertIsNone(rows[other['id']]['lang'])
+        self.assertIsNone(rows[plain['id']]['lang'])
+        self.assertEqual(rows[payload['id']]['answers'][0]['title'], '¿Qué te gustaría trabajar?')
+        self.assertEqual(rows[payload['id']]['answers'][0]['label'], 'Sentirme más fuerte')
+
+    def test_language_configuration_is_validated(self):
+        self.multilingual()
+        base = self.client.get('/api/forms/' + self.fid).json()['draft']
+        def errors(change):
+            doc = json.loads(json.dumps(base)); change(doc['i18n'])
+            return validate_document(doc)
+        self.assertEqual(errors(lambda i: None), [])
+        self.assertTrue(errors(lambda i: i['languages'].append({'code': 'es', 'name': 'Otra vez', 'short': 'ES'})))
+        self.assertTrue(errors(lambda i: i['languages'][0].update(code='EU/../x')))
+        self.assertTrue(errors(lambda i: i['languages'][0].update(name='')))
+        self.assertTrue(errors(lambda i: i['switcher'].update(position='middle')))
+        self.assertTrue(errors(lambda i: i['switcher'].update(label='long')))
+        self.assertTrue(errors(lambda i: i['translations'].update(fr={'a': 'b'})))
+        self.assertTrue(errors(lambda i: i['translations']['eu'].update(a=5)))
+        self.assertTrue(errors(lambda i: i['translations']['eu'].update(a='x' * 10001)))
+        self.assertTrue(errors(lambda i: i.update(languages=[{'code': f'a{chr(97 + n)}', 'name': 'n', 'short': 'n'} for n in range(13)])))
+
+    def test_schema_adds_the_language_column_to_existing_databases(self):
+        with connect() as db:
+            self.assertIn('lang', {c['name'] for c in db.execute('PRAGMA table_info(submissions)')})
+
+    def test_language_urls_serve_the_frontend(self):
+        self.client.put(f'/api/forms/{self.fid}/slug', json={'slug': 'idiomas'})
+        for path in ['/f/idiomas', '/f/idiomas/eu', '/f/idiomas/pt-br']:
+            response = self.client.get(path)
+            self.assertEqual(response.status_code, 200)
+            self.assertIn('text/html', response.headers['content-type'])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -96,6 +96,17 @@ Se solicita `https://www.googleapis.com/auth/spreadsheets`, que permite acceso a
 
 **Estado de verificación:** integración completa y pruebas automatizadas con un transporte de Sheets simulado, incluida la pérdida de confirmación después de escribir. La comprobación con una cuenta real está pendiente de conectar tus credenciales. No se ha creado ni escrito ninguna hoja real durante el desarrollo.
 
+## Idiomas
+
+La pestaña **Traducciones** del editor gestiona los idiomas de cada formulario.
+
+- Hay un **idioma principal** (el del formulario) y hasta 12 traducciones. Todo vive en `draft.i18n`, así que las traducciones se versionan con cada publicación y las respuestas siguen en las mismas tablas, con los textos del idioma principal. Cada envío registra además el idioma usado (`submissions.lang`), visible en **Respuestas**.
+- **URL por idioma:** `/f/<enlace>/<código>` (por ejemplo `/f/termometro/eu`). `/f/<enlace>` abre el idioma principal. Un código desconocido cae en el principal.
+- Los textos sin traducir se muestran en el idioma principal. Los textos fijos de la interfaz (Continuar, Paso, mensajes de validación…) vienen traducidos para es, en, eu, ca, gl y fr; el resto usa inglés y se puede personalizar por idioma en la propia tabla.
+- **CSV:** «Descargar CSV» da `key;<principal>;<idioma>` (UTF-8 con BOM). Para importar, rellena la última columna y súbelo: se reconocen las filas por `key`, se ignoran las vacías o desconocidas, y se admiten `;`, `,` o tabulador, en UTF-8 o ANSI (Excel).
+- **Selector de idioma:** opcional, con seis posiciones (esquinas y centro, arriba o abajo) y texto completo («Euskera») o abreviado («EU»). Al cambiar de idioma se conserva el recorrido y las respuestas.
+- Si cambias un texto original después de traducirlo, la traducción no se invalida: revísala.
+
 ## Excel y fechas
 
 Cada envío conserva el nombre y el valor final de todas sus variables, incluso si después se renombran o eliminan. El detalle de **Respuestas** muestra esa instantánea histórica. Excel añade columnas estables por ID de variable; las variables que aún no existían quedan vacías, y el cero se mantiene como número. La columna **Valor del resultado** contiene la variable elegida para el cierre. Las exportaciones antiguas conservan su estructura original.

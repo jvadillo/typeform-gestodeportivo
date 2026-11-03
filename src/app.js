@@ -1,6 +1,7 @@
 import {root,api,brand,button,icon,esc,toast,modal,confirmDelete,formatDate} from './ui.js';
 import {Editor} from './editor.js';
 import {Player} from './player.js';
+import {allLanguages} from './i18n.js';
 
 let editor;
 function dashboardShell(content){root.innerHTML=`<div class="admin-layout"><aside class="app-sidebar">${brand()}<span class="workspace-label">ESPACIO PERSONAL</span><a href="/admin" class="sidebar-link active">${icon('grid')} Mis formularios</a><div class="sidebar-bottom"><div class="personal-note"><span class="online-dot"></span> Tu espacio, tus ideas.<small>Administración privada</small></div><button data-action="logout" class="sidebar-link">${icon('logout')} Cerrar sesión</button></div></aside><div class="dashboard-main"><header class="dashboard-header"><span>Mi espacio <span class="slash">/</span> Formularios</span><div class="owner-avatar" title="Propietario">G</div></header>${content}</div></div>`;}
@@ -27,10 +28,15 @@ document.addEventListener('click',async e=>{
   }catch(error){toast(error.message,true);}
 });
 async function boot(){
-  const publicMatch=location.pathname.match(/^\/f\/([^/]+)$/);
+  // /f/<link> opens the main language; /f/<link>/<code> opens that language.
+  const publicMatch=location.pathname.match(/^\/f\/([^/]+?)(?:\/([a-z]{2,3}(?:-[a-z0-9]{2,8})?))?\/?$/);
   if(publicMatch){
     const form=await api('/public/'+publicMatch[1]);root.innerHTML='<main id="public-player"></main>';
-    new Player(document.querySelector('#public-player'),form.document,{submit:(id,answers)=>api(`/public/${form.id}/submit`,{method:'POST',body:{id,answers,version:form.version,token:form.token}})});return;
+    const known=allLanguages(form.document),first=known.find(l=>l.code===publicMatch[2])?.code,main=known[0].code;
+    const show=code=>{document.documentElement.lang=code;};
+    show(first||main);
+    if(publicMatch[2]&&!first)history.replaceState(null,'','/f/'+publicMatch[1]);
+    new Player(document.querySelector('#public-player'),form.document,{lang:first,onLanguage:code=>{show(code);history.replaceState(null,'','/f/'+publicMatch[1]+'/'+code);},submit:(id,answers,lang)=>api(`/public/${form.id}/submit`,{method:'POST',body:{id,answers,lang,version:form.version,token:form.token}})});return;
   }
   const status=await api('/auth');if(!status.authenticated){await loginPage(status);return;}
   const editorMatch=location.pathname.match(/^\/admin\/forms\/([^/]+)$/);
